@@ -7,20 +7,43 @@ export declare class ReportesController {
         totalCantidad: number;
         totalMonto: number;
     }[]>;
-    ventasPorVendedor(): Promise<any>;
-    ventasPorCliente(): Promise<any>;
+    ventasPorVendedor(): Promise<{
+        vendedor: {
+            id: number;
+            nombre: string;
+            codigo: string | null;
+        };
+        totalVentas: number;
+        totalMonto: number;
+    }[]>;
+    ventasPorCliente(): Promise<{
+        cliente: {
+            id: number;
+            nombre: string;
+            tipo: string;
+        };
+        totalVentas: number;
+        totalMonto: number;
+    }[]>;
     inventarioResumen(): Promise<{
-        totalLotes: any;
-        lotesVencidos: any;
-        lotesPorVencer30Dias: any;
-        stockTotal: any;
-        productos: any;
+        totalLotes: number;
+        lotesVencidos: number;
+        lotesPorVencer30Dias: number;
+        stockTotal: number;
+        productos: {
+            lote: string;
+            producto: string;
+            cantidad: number;
+            fechaVencimiento: Date;
+            bodega: string | null;
+            vencido: boolean;
+        }[];
     }>;
     dashboard(): Promise<{
         ventas: {
-            total: any;
-            facturadas: any;
-            pendientes: any;
+            total: number;
+            facturadas: number;
+            pendientes: number;
         };
         financiero: {
             montoTotalVentas: number;
@@ -29,10 +52,19 @@ export declare class ReportesController {
             totalDevuelto: number;
         };
         clientes: {
-            total: any;
-            credito: any;
-            contado: any;
+            total: number;
+            credito: number;
+            contado: number;
         };
     }>;
-    cuentasPorCobrar(): Promise<any>;
+    cuentasPorCobrar(): Promise<{
+        cliente: {
+            id: number;
+            nombre: string;
+            limiteCredito: number;
+        };
+        saldoPendiente: number;
+        porcentajeLimite: number;
+        riesgo: string;
+    }[]>;
 }
