@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "turbo run dev",
-    "build": "turbo run build"
+    "build": "turbo run build",
+    "start": "node apps/api/dist/main.js"
   },
   "keywords": [],
   "author": "",
@@ -17,5 +18,8 @@
   "devDependencies": {
     "turbo": "^2.8.12"
   },
-  "packageManager": "npm@10.8.1"
+  "packageManager": "npm@10.8.1",
+  "dependencies": {
+    "prisma": "^7.4.2"
+  }
 }
