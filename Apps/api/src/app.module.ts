@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { PrismaModule } from './prisma/prisma.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { CategoriasController } from './categorias/categorias.controller';
@@ -12,7 +13,7 @@ import { DevolucionesController } from './devoluciones/devoluciones.controller';
 import { ReportesController } from './reportes/reportes.controller';
 
 @Module({
-  imports: [],
+  imports: [PrismaModule],
   controllers: [
     AppController,
     CategoriasController,

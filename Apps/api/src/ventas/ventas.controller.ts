@@ -1,168 +1,144 @@
 import { Controller, Get, Post, Put, Body, Param, ParseIntPipe, Query } from '@nestjs/common';
-import {
-    ventas, Venta, DetalleVenta,
-    productos, lotes, clientes, vendedores, rutas,
-    facturas, Factura
-} from '../data/mock-data';
-
-// In-memory mutable copies
-const ventasData = [...ventas];
-const facturasData = [...facturas];
-const lotesData = [...lotes];
-let nextVentaId = ventasData.length + 1;
-let nextFacturaId = facturasData.length + 1;
-let facturaNumero = facturasData.length + 1;
+import { PrismaService } from '../prisma/prisma.service';
 
 @Controller('ventas')
 export class VentasController {
+    constructor(private prisma: PrismaService) { }
 
     @Get()
-    findAll(@Query('estado') estado?: string, @Query('clienteId') clienteId?: string) {
-        let result = ventasData.map(v => ({
-            ...v,
-            cliente: clientes.find(c => c.id === v.clienteId),
-            vendedor: vendedores.find(vnd => vnd.id === v.vendedorId),
-        }));
-        if (estado) result = result.filter(v => v.estado === estado.toUpperCase());
-        if (clienteId) result = result.filter(v => v.clienteId === parseInt(clienteId));
-        return result;
+    async findAll(@Query('estado') estado?: string, @Query('clienteId') clienteId?: string) {
+        const where: any = {};
+        if (estado) where.estado = estado.toUpperCase();
+        if (clienteId) where.clienteId = parseInt(clienteId);
+        return this.prisma.venta.findMany({
+            where,
+            include: { cliente: true, vendedor: true, detalles: { include: { producto: true } } },
+            orderBy: { fecha: 'desc' },
+        });
     }
 
     @Get(':id')
-    findOne(@Param('id', ParseIntPipe) id: number) {
-        const venta = ventasData.find(v => v.id === id);
+    async findOne(@Param('id', ParseIntPipe) id: number) {
+        const venta = await this.prisma.venta.findUnique({
+            where: { id },
+            include: {
+                cliente: true,
+                vendedor: true,
+                detalles: { include: { producto: true, lote: true } },
+                factura: true,
+            }
+        });
         if (!venta) return { error: 'Venta no encontrada', id };
-        return {
-            ...venta,
-            cliente: clientes.find(c => c.id === venta.clienteId),
-            vendedor: vendedores.find(v => v.id === venta.vendedorId),
-            detallesEnriquecidos: venta.detalles.map(d => ({
-                ...d,
-                producto: productos.find(p => p.id === d.productoId),
-                lote: lotesData.find(l => l.id === d.loteId),
-            })),
-        };
+        return venta;
     }
 
     @Post()
-    create(@Body() body: { clienteId: number; vendedorId: number; rutaId: number; tipo: 'CONTADO' | 'CREDITO'; detalles: DetalleVenta[] }) {
+    async create(@Body() body: any) {
         // Validar cliente
-        const cliente = clientes.find(c => c.id === body.clienteId);
+        const cliente = await this.prisma.cliente.findUnique({ where: { id: body.clienteId } });
         if (!cliente) return { error: 'Cliente no encontrado' };
         if (!cliente.activo) return { error: 'Cliente inactivo' };
 
-        // Validar inventario por lote
-        for (const detalle of body.detalles) {
-            const lote = lotesData.find(l => l.id === detalle.loteId);
-            if (!lote) return { error: `Lote ${detalle.loteId} no encontrado` };
-            if (lote.cantidad < detalle.cantidad) {
-                return { error: `Stock insuficiente en lote ${lote.numero}. Disponible: ${lote.cantidad}` };
-            }
-            // Validar vencimiento
-            const hoy = new Date();
-            if (new Date(lote.fechaVencimiento) < hoy) {
-                return { error: `Lote ${lote.numero} está vencido` };
-            }
-        }
+        const total = body.detalles?.reduce((s: number, d: any) => s + (d.subtotal || 0), 0) || 0;
 
         // Validar crédito
-        const total = body.detalles.reduce((s, d) => s + d.subtotal, 0);
-        if (body.tipo === 'CREDITO' && cliente.tipo === 'CREDITO') {
-            if (cliente.saldoCredito + total > cliente.limiteCredito) {
-                return { error: 'Límite de crédito excedido', disponible: cliente.limiteCredito - cliente.saldoCredito, total };
+        if (body.tipo === 'CREDITO') {
+            const disponible = Number(cliente.limiteCredito) - Number(cliente.saldoCredito);
+            if (total > disponible) {
+                return { error: 'Límite de crédito excedido', disponible, total };
             }
         }
 
-        // Descontar inventario
-        for (const detalle of body.detalles) {
-            const loteIdx = lotesData.findIndex(l => l.id === detalle.loteId);
-            if (loteIdx !== -1) lotesData[loteIdx].cantidad -= detalle.cantidad;
-        }
+        const venta = await this.prisma.venta.create({
+            data: {
+                clienteId: body.clienteId,
+                vendedorId: body.vendedorId,
+                subtotal: total,
+                total: total,
+                estado: 'PENDIENTE',
+                tipo: body.tipo || 'CONTADO',
+                detalles: {
+                    create: (body.detalles || []).map((d: any) => ({
+                        productoId: d.productoId,
+                        cantidad: d.cantidad,
+                        precioUnitario: d.precioUnitario,
+                        descuento: d.descuento || 0,
+                        subtotal: d.subtotal,
+                        loteId: d.loteId || null,
+                    })),
+                },
+            },
+            include: { detalles: true, cliente: true, vendedor: true },
+        });
 
-        const nuevaVenta: Venta = {
-            id: nextVentaId++,
-            clienteId: body.clienteId,
-            vendedorId: body.vendedorId,
-            rutaId: body.rutaId,
-            fecha: new Date().toISOString().split('T')[0],
-            estado: 'PENDIENTE',
-            tipo: body.tipo,
-            detalles: body.detalles,
-            total,
-        };
-        ventasData.push(nuevaVenta);
-        return nuevaVenta;
+        return venta;
     }
 
     @Put(':id/facturar')
-    facturar(@Param('id', ParseIntPipe) id: number) {
-        const venta = ventasData.find(v => v.id === id);
+    async facturar(@Param('id', ParseIntPipe) id: number) {
+        const venta = await this.prisma.venta.findUnique({ where: { id }, include: { factura: true } });
         if (!venta) return { error: 'Venta no encontrada' };
         if (venta.estado !== 'PENDIENTE') return { error: 'Solo se pueden facturar ventas pendientes' };
 
-        venta.estado = 'FACTURADA';
-        const factura: Factura = {
-            id: nextFacturaId++,
-            ventaId: id,
-            numero: `FAC-2025-${String(facturaNumero++).padStart(4, '0')}`,
-            fecha: new Date().toISOString().split('T')[0],
-            total: venta.total,
-            estado: venta.tipo === 'CONTADO' ? 'PAGADA' : 'PENDIENTE',
-            tipo: venta.tipo,
-        };
-        facturasData.push(factura);
-        return { mensaje: 'Venta facturada', venta, factura };
+        const count = await this.prisma.factura.count();
+        const numero = `FAC-2025-${String(count + 1).padStart(4, '0')}`;
+
+        const [ventaActualizada, factura] = await this.prisma.$transaction([
+            this.prisma.venta.update({ where: { id }, data: { estado: 'FACTURADA' } }),
+            this.prisma.factura.create({
+                data: {
+                    ventaId: id,
+                    numero,
+                    total: venta.total,
+                    estado: venta.tipo === 'CONTADO' ? 'PAGADA' : 'PENDIENTE',
+                    tipo: venta.tipo,
+                }
+            }),
+        ]);
+
+        return { mensaje: 'Venta facturada', venta: ventaActualizada, factura };
     }
 
     @Put(':id/anular')
-    anular(@Param('id', ParseIntPipe) id: number) {
-        const venta = ventasData.find(v => v.id === id);
+    async anular(@Param('id', ParseIntPipe) id: number) {
+        const venta = await this.prisma.venta.findUnique({ where: { id } });
         if (!venta) return { error: 'Venta no encontrada' };
         if (venta.estado === 'ANULADA') return { error: 'Venta ya está anulada' };
-        venta.estado = 'ANULADA';
+        await this.prisma.venta.update({ where: { id }, data: { estado: 'ANULADA' } });
         return { mensaje: 'Venta anulada', id };
     }
 }
 
 @Controller('facturas')
 export class FacturasController {
+    constructor(private prisma: PrismaService) { }
 
     @Get()
-    findAll(@Query('estado') estado?: string) {
-        let result = facturasData.map(f => ({
-            ...f,
-            venta: ventasData.find(v => v.id === f.ventaId),
-            cliente: clientes.find(c => {
-                const venta = ventasData.find(v => v.id === f.ventaId);
-                return venta ? c.id === venta.clienteId : false;
-            }),
-        }));
-        if (estado) result = result.filter(f => f.estado === estado.toUpperCase());
-        return result;
+    async findAll(@Query('estado') estado?: string) {
+        const where: any = {};
+        if (estado) where.estado = estado.toUpperCase();
+        return this.prisma.factura.findMany({
+            where,
+            include: { venta: { include: { cliente: true } } },
+            orderBy: { fecha: 'desc' },
+        });
     }
 
     @Get('pendientes')
-    pendientes() {
-        return facturasData
-            .filter(f => f.estado === 'PENDIENTE')
-            .map(f => {
-                const venta = ventasData.find(v => v.id === f.ventaId);
-                return {
-                    ...f,
-                    cliente: venta ? clientes.find(c => c.id === venta.clienteId) : null,
-                };
-            });
+    async pendientes() {
+        return this.prisma.factura.findMany({
+            where: { estado: 'PENDIENTE' },
+            include: { venta: { include: { cliente: true } } },
+        });
     }
 
     @Get(':id')
-    findOne(@Param('id', ParseIntPipe) id: number) {
-        const factura = facturasData.find(f => f.id === id);
+    async findOne(@Param('id', ParseIntPipe) id: number) {
+        const factura = await this.prisma.factura.findUnique({
+            where: { id },
+            include: { venta: { include: { cliente: true, detalles: { include: { producto: true } } } }, cobros: true },
+        });
         if (!factura) return { error: 'Factura no encontrada', id };
-        const venta = ventasData.find(v => v.id === factura.ventaId);
-        return {
-            ...factura,
-            venta,
-            cliente: venta ? clientes.find(c => c.id === venta.clienteId) : null,
-        };
+        return factura;
     }
 }

@@ -1,68 +1,72 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe, Query } from '@nestjs/common';
-import { clientes, Cliente } from '../data/mock-data';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Controller('clientes')
 export class ClientesController {
-    private data = [...clientes];
-    private nextId = this.data.length + 1;
+    constructor(private prisma: PrismaService) { }
 
     @Get()
-    findAll(@Query('tipo') tipo?: string, @Query('activo') activo?: string) {
-        let result = [...this.data];
-        if (tipo) result = result.filter(c => c.tipo === tipo.toUpperCase());
-        if (activo !== undefined) result = result.filter(c => c.activo === (activo === 'true'));
-        return result;
+    async findAll(@Query('activo') activo?: string, @Query('tipo') tipo?: string) {
+        const where: any = {};
+        if (activo !== undefined) where.activo = activo === 'true';
+        if (tipo) where.tipo = tipo.toUpperCase();
+        return this.prisma.cliente.findMany({ where, include: { ruta: true } });
     }
 
     @Get('con-credito-disponible')
-    conCreditoDisponible() {
-        return this.data
-            .filter(c => c.tipo === 'CREDITO' && c.activo)
-            .map(c => ({
-                ...c,
-                creditoDisponible: c.limiteCredito - c.saldoCredito,
-                porcentajeUsado: ((c.saldoCredito / c.limiteCredito) * 100).toFixed(1),
-            }));
+    async conCreditoDisponible() {
+        const clientes = await this.prisma.cliente.findMany({
+            where: { tipo: 'CREDITO', activo: true }
+        });
+        return clientes.map(c => ({
+            ...c,
+            limiteCredito: Number(c.limiteCredito),
+            saldoCredito: Number(c.saldoCredito),
+            creditoDisponible: Number(c.limiteCredito) - Number(c.saldoCredito),
+        }));
     }
 
     @Get(':id')
-    findOne(@Param('id', ParseIntPipe) id: number) {
-        const item = this.data.find(c => c.id === id);
+    async findOne(@Param('id', ParseIntPipe) id: number) {
+        const item = await this.prisma.cliente.findUnique({ where: { id }, include: { ruta: true } });
         if (!item) return { error: 'Cliente no encontrado', id };
         return {
             ...item,
-            creditoDisponible: item.tipo === 'CREDITO' ? item.limiteCredito - item.saldoCredito : null,
+            limiteCredito: Number(item.limiteCredito),
+            saldoCredito: Number(item.saldoCredito),
+            creditoDisponible: Number(item.limiteCredito) - Number(item.saldoCredito),
         };
     }
 
     @Post()
-    create(@Body() body: Omit<Cliente, 'id'>) {
-        const nuevo: Cliente = { id: this.nextId++, ...body, saldoCredito: body.saldoCredito ?? 0 };
-        this.data.push(nuevo);
-        return nuevo;
+    async create(@Body() body: any) {
+        return this.prisma.cliente.create({
+            data: {
+                nombre: body.nombre,
+                identificacion: body.identificacion,
+                tipo: body.tipo || 'CONTADO',
+                direccion: body.direccion,
+                telefono: body.telefono,
+                email: body.email,
+                limiteCredito: body.limiteCredito || 0,
+                saldoCredito: body.saldoCredito || 0,
+                diasCredito: body.diasCredito || 0,
+                rutaId: body.rutaId,
+            }
+        });
     }
 
     @Put(':id')
-    update(@Param('id', ParseIntPipe) id: number, @Body() body: Partial<Cliente>) {
-        const idx = this.data.findIndex(c => c.id === id);
-        if (idx === -1) return { error: 'Cliente no encontrado', id };
-        // Validar límite de crédito
-        if (body.saldoCredito !== undefined && this.data[idx].tipo === 'CREDITO') {
-            const nuevoSaldo = body.saldoCredito;
-            const limite = body.limiteCredito ?? this.data[idx].limiteCredito;
-            if (nuevoSaldo > limite) {
-                return { error: 'El saldo supera el límite de crédito', limite, saldo: nuevoSaldo };
-            }
-        }
-        this.data[idx] = { ...this.data[idx], ...body };
-        return this.data[idx];
+    async update(@Param('id', ParseIntPipe) id: number, @Body() body: any) {
+        const item = await this.prisma.cliente.findUnique({ where: { id } });
+        if (!item) return { error: 'Cliente no encontrado', id };
+        return this.prisma.cliente.update({ where: { id }, data: body });
     }
 
     @Delete(':id')
-    remove(@Param('id', ParseIntPipe) id: number) {
-        const idx = this.data.findIndex(c => c.id === id);
-        if (idx === -1) return { error: 'Cliente no encontrado', id };
-        this.data[idx].activo = false;
-        return { mensaje: 'Cliente desactivado', id };
+    async remove(@Param('id', ParseIntPipe) id: number) {
+        const item = await this.prisma.cliente.findUnique({ where: { id } });
+        if (!item) return { error: 'Cliente no encontrado', id };
+        return this.prisma.cliente.update({ where: { id }, data: { activo: false } });
     }
 }

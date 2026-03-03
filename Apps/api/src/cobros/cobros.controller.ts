@@ -1,53 +1,54 @@
 import { Controller, Get, Post, Body, Param, ParseIntPipe, Query } from '@nestjs/common';
-import { cobros, Cobro, clientes } from '../data/mock-data';
-
-// Shared facturas state (reference same module-level array)
-const cobrosData = [...cobros];
-let nextCobroId = cobrosData.length + 1;
+import { PrismaService } from '../prisma/prisma.service';
 
 @Controller('cobros')
 export class CobrosController {
+    constructor(private prisma: PrismaService) { }
 
     @Get()
-    findAll(@Query('clienteId') clienteId?: string, @Query('metodoPago') metodoPago?: string) {
-        let result = cobrosData.map(c => ({
-            ...c,
-            cliente: clientes.find(cl => cl.id === c.clienteId),
-        }));
-        if (clienteId) result = result.filter(c => c.clienteId === parseInt(clienteId));
-        if (metodoPago) result = result.filter(c => c.metodoPago === metodoPago.toUpperCase());
-        return result;
+    async findAll() {
+        return this.prisma.cobro.findMany({
+            include: { cliente: true, factura: true },
+            orderBy: { fecha: 'desc' },
+        });
     }
 
     @Get('resumen')
-    resumen() {
-        const total = cobrosData.reduce((sum, c) => sum + c.monto, 0);
-        const porMetodo = cobrosData.reduce((acc, c) => {
-            acc[c.metodoPago] = (acc[c.metodoPago] || 0) + c.monto;
-            return acc;
-        }, {} as Record<string, number>);
-        return { totalCobrado: total.toFixed(2), porMetodo, totalCobros: cobrosData.length };
+    async resumen() {
+        const cobros = await this.prisma.cobro.findMany();
+        const resumen: Record<string, { cantidad: number; total: number }> = {};
+        cobros.forEach(c => {
+            if (!resumen[c.metodoPago]) resumen[c.metodoPago] = { cantidad: 0, total: 0 };
+            resumen[c.metodoPago].cantidad++;
+            resumen[c.metodoPago].total += Number(c.monto);
+        });
+        return Object.entries(resumen).map(([metodo, data]) => ({ metodo, ...data }));
     }
 
     @Get(':id')
-    findOne(@Param('id', ParseIntPipe) id: number) {
-        const cobro = cobrosData.find(c => c.id === id);
-        if (!cobro) return { error: 'Cobro no encontrado', id };
-        return { ...cobro, cliente: clientes.find(c => c.id === cobro.clienteId) };
+    async findOne(@Param('id', ParseIntPipe) id: number) {
+        const item = await this.prisma.cobro.findUnique({
+            where: { id },
+            include: { cliente: true, factura: true },
+        });
+        if (!item) return { error: 'Cobro no encontrado', id };
+        return item;
     }
 
     @Post()
-    create(@Body() body: Omit<Cobro, 'id'>) {
-        // Validar cliente
-        const cliente = clientes.find(c => c.id === body.clienteId);
+    async create(@Body() body: any) {
+        const cliente = await this.prisma.cliente.findUnique({ where: { id: body.clienteId } });
         if (!cliente) return { error: 'Cliente no encontrado' };
 
-        const nuevoCobro: Cobro = {
-            id: nextCobroId++,
-            ...body,
-            fecha: body.fecha || new Date().toISOString().split('T')[0],
-        };
-        cobrosData.push(nuevoCobro);
-        return { mensaje: 'Cobro registrado exitosamente', cobro: nuevoCobro };
+        return this.prisma.cobro.create({
+            data: {
+                monto: body.monto,
+                metodoPago: body.metodoPago,
+                referenciaPago: body.referenciaPago,
+                facturaId: body.facturaId,
+                clienteId: body.clienteId,
+            },
+            include: { cliente: true, factura: true },
+        });
     }
 }

@@ -1,66 +1,57 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe, Query } from '@nestjs/common';
-import { promociones, Promocion, productos } from '../data/mock-data';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Controller('promociones')
 export class PromocionesController {
-    private data = [...promociones];
-    private nextId = this.data.length + 1;
+    constructor(private prisma: PrismaService) { }
 
     @Get()
-    findAll(@Query('activa') activa?: string) {
-        const hoy = new Date().toISOString().split('T')[0];
-        let result = this.data.map(p => ({
-            ...p,
-            vigente: p.activa && p.fechaInicio <= hoy && p.fechaFin >= hoy,
-            productosNombres: p.productoIds.map(pid => productos.find(pr => pr.id === pid)?.nombre).filter(Boolean),
-        }));
-        if (activa !== undefined) {
-            result = result.filter(p => p.activa === (activa === 'true'));
-        }
-        return result;
+    async findAll(@Query('activa') activa?: string) {
+        const where: any = {};
+        if (activa !== undefined) where.activa = activa === 'true';
+        return this.prisma.promocion.findMany({
+            where,
+            include: { productos: { include: { producto: true } } }
+        });
     }
 
     @Get('vigentes')
-    vigentes() {
-        const hoy = new Date().toISOString().split('T')[0];
-        return this.data.filter(p => p.activa && p.fechaInicio <= hoy && p.fechaFin >= hoy).map(p => ({
-            ...p,
-            productosNombres: p.productoIds.map(pid => productos.find(pr => pr.id === pid)?.nombre).filter(Boolean),
-        }));
+    async vigentes() {
+        const hoy = new Date();
+        return this.prisma.promocion.findMany({
+            where: {
+                activa: true,
+                fechaInicio: { lte: hoy },
+                fechaFin: { gte: hoy },
+            },
+            include: { productos: { include: { producto: true } } }
+        });
     }
 
     @Get(':id')
-    findOne(@Param('id', ParseIntPipe) id: number) {
-        const item = this.data.find(p => p.id === id);
+    async findOne(@Param('id', ParseIntPipe) id: number) {
+        const item = await this.prisma.promocion.findUnique({
+            where: { id },
+            include: { productos: { include: { producto: true } } }
+        });
         if (!item) return { error: 'Promoción no encontrada', id };
-        const hoy = new Date().toISOString().split('T')[0];
-        return {
-            ...item,
-            vigente: item.activa && item.fechaInicio <= hoy && item.fechaFin >= hoy,
-            productosNombres: item.productoIds.map(pid => productos.find(pr => pr.id === pid)?.nombre).filter(Boolean),
-        };
+        return item;
     }
 
     @Post()
-    create(@Body() body: Omit<Promocion, 'id'>) {
-        const nueva: Promocion = { id: this.nextId++, ...body };
-        this.data.push(nueva);
-        return nueva;
+    async create(@Body() body: any) {
+        return this.prisma.promocion.create({ data: body });
     }
 
     @Put(':id')
-    update(@Param('id', ParseIntPipe) id: number, @Body() body: Partial<Promocion>) {
-        const idx = this.data.findIndex(p => p.id === id);
-        if (idx === -1) return { error: 'Promoción no encontrada', id };
-        this.data[idx] = { ...this.data[idx], ...body };
-        return this.data[idx];
+    async update(@Param('id', ParseIntPipe) id: number, @Body() body: any) {
+        const item = await this.prisma.promocion.findUnique({ where: { id } });
+        if (!item) return { error: 'Promoción no encontrada', id };
+        return this.prisma.promocion.update({ where: { id }, data: body });
     }
 
     @Delete(':id')
-    remove(@Param('id', ParseIntPipe) id: number) {
-        const idx = this.data.findIndex(p => p.id === id);
-        if (idx === -1) return { error: 'Promoción no encontrada', id };
-        this.data[idx].activa = false;
-        return { mensaje: 'Promoción desactivada', id };
+    async remove(@Param('id', ParseIntPipe) id: number) {
+        return this.prisma.promocion.update({ where: { id }, data: { activa: false } });
     }
 }

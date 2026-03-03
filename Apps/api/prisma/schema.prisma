@@ -1,0 +1,195 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// =======================
+// TABLES
+// =======================
+
+model Categoria {
+  id          Int        @id @default(autoincrement())
+  nombre      String
+  descripcion String?
+  activa      Boolean    @default(true)
+  productos   Producto[]
+}
+
+model Cliente {
+  id             Int       @id @default(autoincrement())
+  nombre         String
+  identificacion String?
+  tipo           String    @default("CONTADO")
+  direccion      String
+  telefono       String?
+  email          String?
+  limiteCredito  Decimal   @default(0) @db.Decimal(12, 2)
+  saldoCredito   Decimal   @default(0) @db.Decimal(12, 2)
+  diasCredito    Int       @default(0)
+  activo         Boolean   @default(true)
+  rutaId         Int?
+  
+  ruta           Ruta?     @relation(fields: [rutaId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  cobros         Cobro[]
+  ventas         Venta[]
+}
+
+model Cobro {
+  id             Int       @id @default(autoincrement())
+  fecha          DateTime  @default(now())
+  monto          Decimal   @db.Decimal(12, 2)
+  metodoPago     String
+  referenciaPago String?
+  facturaId      Int
+  clienteId      Int
+
+  cliente        Cliente   @relation(fields: [clienteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  factura        Factura   @relation(fields: [facturaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+}
+
+model DetalleVenta {
+  id             Int       @id @default(autoincrement())
+  cantidad       Int
+  precioUnitario Decimal   @db.Decimal(10, 2)
+  descuento      Decimal   @default(0) @db.Decimal(10, 2)
+  subtotal       Decimal   @db.Decimal(12, 2)
+  ventaId        Int
+  productoId     Int
+  loteId         Int?
+
+  producto       Producto  @relation(fields: [productoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  venta          Venta     @relation(fields: [ventaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  lote           Lote?     @relation(fields: [loteId], references: [id])
+}
+
+model Devolucion {
+  id      Int       @id @default(autoincrement())
+  fecha   DateTime  @default(now())
+  motivo  String
+  estado  String    @default("PENDIENTE")
+  ventaId Int
+
+  venta   Venta     @relation(fields: [ventaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+}
+
+model Factura {
+  id            Int           @id @default(autoincrement())
+  numero        String
+  fecha         DateTime      @default(now())
+  total         Decimal       @db.Decimal(12, 2)
+  estado        String        @default("PENDIENTE")
+  tipo          String        @default("CONTADO")
+  ventaId       Int           @unique
+
+  venta         Venta         @relation(fields: [ventaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  cobros        Cobro[]
+}
+
+model Lote {
+  id                 Int      @id @default(autoincrement())
+  numero             String
+  fechaFabricacion   DateTime?
+  fechaVencimiento   DateTime
+  cantidad           Int
+  bodega             String?
+  productoId         Int
+
+  producto           Producto               @relation(fields: [productoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  movimientos        MovimientoInventario[]
+  detallesVentas     DetalleVenta[]
+}
+
+model MovimientoInventario {
+  id              Int       @id @default(autoincrement())
+  tipoMovimiento  String
+  cantidad        Int
+  fechaMovimiento DateTime  @default(now())
+  referencia      String?
+  loteId          Int
+
+  lote            Lote      @relation(fields: [loteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+}
+
+model Producto {
+  id           Int       @id @default(autoincrement())
+  nombre       String
+  descripcion  String?
+  codigo       String?
+  precio       Decimal   @db.Decimal(10, 2)
+  unidad       String?
+  activo       Boolean   @default(true)
+  categoriaId  Int
+
+  categoria    Categoria           @relation(fields: [categoriaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  detallesVenta DetalleVenta[]
+  lotes        Lote[]
+  promociones  PromocionProducto[]
+}
+
+model Promocion {
+  id             Int       @id @default(autoincrement())
+  nombre         String
+  descripcion    String?
+  tipo           String    @default("DESCUENTO_PORCENTAJE")
+  fechaInicio    DateTime
+  fechaFin       DateTime
+  valor          Decimal   @default(0) @db.Decimal(10, 2)
+  activa         Boolean   @default(true)
+
+  productos      PromocionProducto[]
+}
+
+model PromocionProducto {
+  id          Int       @id @default(autoincrement())
+  promocionId Int
+  productoId  Int
+
+  producto    Producto  @relation(fields: [productoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  promocion   Promocion @relation(fields: [promocionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+}
+
+model Ruta {
+  id          Int        @id @default(autoincrement())
+  nombre      String
+  descripcion String?
+  zona        String?
+  dias        String[]
+  vendedorId  Int
+
+  vendedor    Vendedor   @relation(fields: [vendedorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  clientes    Cliente[]
+}
+
+model Vendedor {
+  id       Int       @id @default(autoincrement())
+  nombre   String
+  codigo   String?
+  telefono String?
+  email    String?
+  activo   Boolean   @default(true)
+  
+  rutas    Ruta[]
+  ventas   Venta[]
+}
+
+model Venta {
+  id             Int         @id @default(autoincrement())
+  fecha          DateTime    @default(now())
+  subtotal       Decimal     @db.Decimal(12, 2)
+  descuentoTotal Decimal     @default(0) @db.Decimal(12, 2)
+  total          Decimal     @db.Decimal(12, 2)
+  estado         String      @default("PENDIENTE")
+  tipo           String      @default("CONTADO")
+  clienteId      Int
+  vendedorId     Int
+
+  cliente        Cliente     @relation(fields: [clienteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  vendedor       Vendedor    @relation(fields: [vendedorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  
+  detalles       DetalleVenta[]
+  devoluciones   Devolucion[]
+  factura        Factura?
+}
