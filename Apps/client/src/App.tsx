@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
+import { jsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 const API = 'http://localhost:3000/api'
+
 
 async function apiFetch(path: string) {
   const res = await fetch(`${API}${path}`)
@@ -612,9 +615,292 @@ function VentasPage() {
   )
 }
 
+// ── Reportes Page ──────────────────────────────────────────────────
+function ReportesPage() {
+  const [loading, setLoading] = useState(false)
+
+  const generarReporteMaster = async () => {
+    setLoading(true)
+    try {
+      const [dash, topP, vv, cpc, inv] = await Promise.all([
+        apiFetch('/reportes/dashboard'),
+        apiFetch('/reportes/productos-mas-vendidos?limite=10'),
+        apiFetch('/reportes/ventas-por-vendedor'),
+        apiFetch('/reportes/cuentas-por-cobrar'),
+        apiFetch('/reportes/inventario-resumen')
+      ])
+
+      const doc = new jsPDF()
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+
+      // --- Funciones Auxiliares para Diseño ---
+      const drawHeader = (docInstance: typeof doc, title: string, subtitle: string) => {
+        docInstance.setFillColor(15, 23, 42) // Slate 900
+        docInstance.rect(0, 0, pageWidth, 35, 'F')
+        docInstance.setTextColor(255, 255, 255)
+        docInstance.setFontSize(24)
+        docInstance.setFont("helvetica", "bold")
+        docInstance.text("SIDC", 14, 22)
+
+        docInstance.setFontSize(12)
+        docInstance.setFont("helvetica", "normal")
+        docInstance.text("Sistema Integral de Distribución Comercial", 40, 22)
+
+        docInstance.setTextColor(148, 163, 184) // Slate 400
+        docInstance.text(title, pageWidth - 14, 18, { align: 'right' })
+        docInstance.setFontSize(9)
+        docInstance.text(subtitle, pageWidth - 14, 25, { align: 'right' })
+      }
+
+      const drawFooter = (docInstance: typeof doc, pageNumber: number, totalPages: number) => {
+        docInstance.setDrawColor(226, 232, 240) // Slate 200
+        docInstance.setLineWidth(0.5)
+        docInstance.line(14, pageHeight - 15, pageWidth - 14, pageHeight - 15)
+        docInstance.setFontSize(9)
+        docInstance.setTextColor(100, 116, 139) // Slate 500
+        docInstance.setFont("helvetica", "normal")
+        docInstance.text(`Generado: ${new Date().toLocaleString()}`, 14, pageHeight - 8)
+        docInstance.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - 14, pageHeight - 8, { align: 'right' })
+      }
+
+      // ==========================================
+      // PÁGINA 1: RESUMEN Y FINANZAS
+      // ==========================================
+      drawHeader(doc, "REPORTE EJECUTIVO", "Indicadores y Finanzas")
+
+      // Título de Sección
+      doc.setFontSize(14)
+      doc.setTextColor(30, 41, 59) // Slate 800
+      doc.setFont("helvetica", "bold")
+      doc.text("1. Resumen de Desempeño Financiero", 14, 50)
+
+      // Cajas de KPIs (Boxes)
+      const kpiY = 56
+      const boxW = 56
+
+      // KPI 1: Ventas
+      doc.setFillColor(239, 246, 255) // Blue 50
+      doc.setDrawColor(191, 219, 254) // Blue 200
+      doc.setLineWidth(0.5)
+      doc.roundedRect(14, kpiY, boxW, 26, 2, 2, 'FD')
+      doc.setFontSize(10)
+      doc.setTextColor(30, 64, 175) // Blue 800
+      doc.text("Ventas Totales", 18, kpiY + 8)
+      doc.setFontSize(16)
+      doc.setFont("helvetica", "bold")
+      doc.text(dash.ventas.total.toString(), 18, kpiY + 18)
+      doc.setFontSize(8)
+      doc.setFont("helvetica", "normal")
+      doc.text(`${dash.ventas.facturadas} facturadas`, 18, kpiY + 23)
+
+      // KPI 2: Ingresos
+      doc.setFillColor(236, 253, 245) // Emerald 50
+      doc.setDrawColor(167, 243, 208) // Emerald 200
+      doc.roundedRect(14 + boxW + 7, kpiY, boxW, 26, 2, 2, 'FD')
+      doc.setFontSize(10)
+      doc.setTextColor(6, 95, 70) // Emerald 800
+      doc.text("Monto de Ventas", 14 + boxW + 11, kpiY + 8)
+      doc.setFontSize(16)
+      doc.setFont("helvetica", "bold")
+      doc.text(`$${dash.financiero.montoTotalVentas.toLocaleString()}`, 14 + boxW + 11, kpiY + 18)
+      doc.setFontSize(8)
+      doc.setFont("helvetica", "normal")
+      doc.text(`Cobrado: $${dash.financiero.totalCobrado.toLocaleString()}`, 14 + boxW + 11, kpiY + 23)
+
+      // KPI 3: Cuentas Pendientes
+      doc.setFillColor(255, 251, 235) // Amber 50
+      doc.setDrawColor(253, 230, 138) // Amber 200
+      doc.roundedRect(14 + (boxW + 7) * 2, kpiY, boxW, 26, 2, 2, 'FD')
+      doc.setFontSize(10)
+      doc.setTextColor(146, 64, 14) // Amber 800
+      doc.text("Cuentas Pendientes", 14 + (boxW + 7) * 2 + 4, kpiY + 8)
+      doc.setFontSize(16)
+      doc.setFont("helvetica", "bold")
+      doc.text(`$${dash.financiero.pendienteCobro.toLocaleString()}`, 14 + (boxW + 7) * 2 + 4, kpiY + 18)
+      doc.setFontSize(8)
+      doc.setFont("helvetica", "normal")
+      doc.text(`Devoluciones: $${dash.financiero.totalDevuelto.toLocaleString()}`, 14 + (boxW + 7) * 2 + 4, kpiY + 23)
+
+      // --- Tabla: Ventas por Vendedor ---
+      doc.setFontSize(14)
+      doc.setTextColor(30, 41, 59)
+      doc.setFont("helvetica", "bold")
+      doc.text("2. Rendimiento Comercial por Vendedor", 14, kpiY + 45)
+
+      autoTable(doc, {
+        startY: kpiY + 50,
+        head: [['Vendedor', 'Ventas Realizadas', 'Ingreso Generado']],
+        body: vv.map((item: any) => [
+          item.vendedor?.nombre || 'Desconocido',
+          item.totalVentas.toString(),
+          `$${item.totalMonto.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+        ]),
+        theme: 'striped',
+        headStyles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: 'bold' },
+        styles: { cellPadding: 6, fontSize: 10, textColor: [51, 65, 85] },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        columnStyles: {
+          1: { halign: 'center' },
+          2: { halign: 'right', fontStyle: 'bold' }
+        }
+      })
+
+      // --- Tabla: Resumen de Inventario ---
+      doc.setFontSize(14)
+      doc.setTextColor(30, 41, 59)
+      doc.text("3. Estado General del Inventario", 14, (doc as any).lastAutoTable.finalY + 15)
+
+      autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY + 20,
+        head: [['Métrica de Riesgo Operativo', 'Cantidad de Lotes']],
+        body: [
+          ['Total de Lotes Administrados', inv.totalLotes.toString()],
+          ['Lotes Expirados (Pérdida Mermada)', inv.lotesVencidos.toString()],
+          ['Lotes con Riesgo de Vencimiento (próximos 30 Días)', inv.lotesPorVencer30Dias.toString()]
+        ],
+        theme: 'grid',
+        headStyles: { fillColor: [71, 85, 105], textColor: 255, fontStyle: 'bold' },
+        styles: { cellPadding: 6, fontSize: 10, textColor: [51, 65, 85] },
+        columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } }
+      })
+
+      // ==========================================
+      // PÁGINA 2: PRODUCTOS Y RIESGO
+      // ==========================================
+      doc.addPage()
+      drawHeader(doc, "ANÁLISIS DE PRODUCTOS", "Top Ventas y Riesgo de Cobro")
+
+      doc.setFontSize(14)
+      doc.setTextColor(30, 41, 59)
+      doc.setFont("helvetica", "bold")
+      doc.text("4. Top 10 Productos con Mayor Nivel de Rotación", 14, 50)
+
+      autoTable(doc, {
+        startY: 55,
+        head: [['Producto', 'Código SKU', 'Unidades Desplazadas', 'Ingreso Bruto']],
+        body: topP.map((item: any) => [
+          item.producto?.nombre || 'Desconocido',
+          item.producto?.codigo || '-',
+          item.totalCantidad.toString(),
+          `$${item.totalMonto.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+        ]),
+        theme: 'striped',
+        headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold' }, // Indigo
+        styles: { cellPadding: 6, fontSize: 10, textColor: [51, 65, 85] },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        columnStyles: {
+          2: { halign: 'center' },
+          3: { halign: 'right', fontStyle: 'bold', textColor: [16, 185, 129] } // Emerald
+        }
+      })
+
+      doc.setFontSize(14)
+      doc.setTextColor(30, 41, 59)
+      doc.setFont("helvetica", "bold")
+      doc.text("5. Alerta Monitorizada de Cuentas por Cobrar (Riesgo)", 14, (doc as any).lastAutoTable.finalY + 15)
+
+      autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY + 20,
+        head: [['Cliente Comercial', 'Deuda Acumulada', 'Límite Otorgado', '% Uso', 'Prioridad']],
+        body: cpc.map((item: any) => [
+          item.cliente?.nombre || 'Desconocido',
+          `$${item.saldoPendiente.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+          `$${item.cliente?.limiteCredito.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+          `${item.porcentajeLimite}%`,
+          item.riesgo // ALTO, MEDIO, BAJO
+        ]),
+        theme: 'grid',
+        headStyles: { fillColor: [225, 29, 72], textColor: 255, fontStyle: 'bold' }, // Rose
+        styles: { cellPadding: 6, fontSize: 10, textColor: [51, 65, 85] },
+        columnStyles: {
+          1: { halign: 'right' },
+          2: { halign: 'right' },
+          3: { halign: 'center' },
+          4: { halign: 'center', fontStyle: 'bold' }
+        },
+        didParseCell: function (data: any) {
+          if (data.column.index === 4 && data.cell.section === 'body') {
+            const val = data.cell.raw
+            if (val === 'ALTO') {
+              data.cell.styles.textColor = [220, 38, 38] // Red 600
+            } else if (val === 'MEDIO') {
+              data.cell.styles.textColor = [217, 119, 6] // Amber 600
+            } else {
+              data.cell.styles.textColor = [5, 150, 105] // Emerald 600
+            }
+          }
+        }
+      })
+
+      // --- Numeración y Pie de Página Final ---
+      const totalPages = (doc as any).internal.getNumberOfPages()
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i)
+        drawFooter(doc, i, totalPages)
+      }
+
+      // Guardar PDF final
+      doc.save('SIDC_Analisis_Ejecutivo_Global.pdf')
+
+    } catch (e) {
+      console.error(e)
+      alert("Hubo un error generando el reporte en PDF.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div>
+      <div className="page-header">
+        <h1>📄 Analítica y Reportes PDF</h1>
+        <p>Exportación de toda la inteligencia de negocios del sistema a un documento ejecutivo.</p>
+      </div>
+
+      <div className="section-grid cols-2">
+        <div className="card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ fontSize: 40 }}>📑</div>
+          <div>
+            <h3 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>Reporte Analítico Global (PDF)</h3>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+              Genera instantáneamente un PDF con el análisis y extracción de: KPIs financieros, resumen operativo de inventario,
+              top de productos de alto margen, rendimiento comercial de los vendedores e indicadores de riesgo de la cartera vencida.
+            </p>
+          </div>
+          <button
+            disabled={loading}
+            onClick={generarReporteMaster}
+            style={{
+              marginTop: 'auto',
+              background: 'linear-gradient(135deg, var(--accent-blue), var(--accent-violet))',
+              color: 'white',
+              border: 'none',
+              padding: '12px 20px',
+              fontSize: 14,
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              opacity: loading ? 0.7 : 1,
+              borderRadius: 'var(--radius)',
+              cursor: loading ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {loading ? <div className="spinner" style={{ width: 14, height: 14, margin: 0, borderTopColor: 'white', marginRight: 8 }} /> : <span style={{ fontSize: 18 }}>⬇️</span>}
+            {loading ? ' Extrayendo datos y Generando PDF...' : ' Descargar Informe Completo'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Sidebar Nav Config ──────────────────────────────────────────────
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: '📊', section: 'GENERAL' },
+  { id: 'reportes', label: 'Reportes PDF', icon: '📄', section: 'GENERAL' },
   { id: 'endpoints', label: 'API Endpoints', icon: '🔗', section: 'GENERAL' },
   { id: 'ventas', label: 'Ventas', icon: '🛒', section: 'MÓDULOS' },
   { id: 'facturas', label: 'Facturas', icon: '🧾', section: 'MÓDULOS' },
@@ -631,6 +917,7 @@ const NAV_ITEMS = [
 
 const PAGE_TITLES: Record<string, string> = {
   dashboard: 'Dashboard General',
+  reportes: 'Analítica y Reportes PDF',
   endpoints: 'Explorador de API',
   ventas: 'Gestión de Ventas',
   facturas: 'Facturación',
@@ -659,6 +946,7 @@ export default function App() {
   function renderPage() {
     switch (page) {
       case 'dashboard': return <DashboardPage />
+      case 'reportes': return <ReportesPage />
       case 'endpoints': return <EndpointsPage />
       case 'ventas': return <VentasPage />
       case 'inventario': return <InventarioPage />
