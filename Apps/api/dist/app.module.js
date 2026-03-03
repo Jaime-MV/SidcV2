@@ -10,13 +10,36 @@ exports.AppModule = void 0;
 const common_1 = require("@nestjs/common");
 const app_controller_1 = require("./app.controller");
 const app_service_1 = require("./app.service");
+const categorias_controller_1 = require("./categorias/categorias.controller");
+const productos_controller_1 = require("./productos/productos.controller");
+const clientes_controller_1 = require("./clientes/clientes.controller");
+const rutas_controller_1 = require("./rutas/rutas.controller");
+const promociones_controller_1 = require("./promociones/promociones.controller");
+const ventas_controller_1 = require("./ventas/ventas.controller");
+const cobros_controller_1 = require("./cobros/cobros.controller");
+const devoluciones_controller_1 = require("./devoluciones/devoluciones.controller");
+const reportes_controller_1 = require("./reportes/reportes.controller");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
         imports: [],
-        controllers: [app_controller_1.AppController],
+        controllers: [
+            app_controller_1.AppController,
+            categorias_controller_1.CategoriasController,
+            productos_controller_1.ProductosController,
+            productos_controller_1.LotesController,
+            clientes_controller_1.ClientesController,
+            rutas_controller_1.VendedoresController,
+            rutas_controller_1.RutasController,
+            promociones_controller_1.PromocionesController,
+            ventas_controller_1.VentasController,
+            ventas_controller_1.FacturasController,
+            cobros_controller_1.CobrosController,
+            devoluciones_controller_1.DevolucionesController,
+            reportes_controller_1.ReportesController,
+        ],
         providers: [app_service_1.AppService],
     })
 ], AppModule);
