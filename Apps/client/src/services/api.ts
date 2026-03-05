@@ -341,3 +341,109 @@ export interface ProductoMasVendido {
     unidades?: number;
     ingresos?: number;
 }
+
+// ─── Reportes ─────────────────────────────────────────────────────────────────
+
+export interface FiltrosReporte {
+    dias?: string[];
+    semanas?: string[];
+    anios?: number[];
+}
+
+export interface ReporteGeneral {
+    meta: {
+        generadoEn: string;
+        filtros: FiltrosReporte;
+        periodoDescripcion: string;
+    };
+    resumenVentas: {
+        totalBruto: number;
+        totalDescuentos: number;
+        totalDevoluciones: number;
+        totalNeto: number;
+        promedioVenta: number;
+        ventaMaxima: number;
+        ventaMinima: number;
+        cantidadVentas: number;
+        completadas: number;
+        anuladas: number;
+        pendientes: number;
+        tasaCompletacion: number;
+    };
+    facturacion: {
+        totalFacturas: number;
+        pagadas: { count: number; monto: number };
+        pendientes: { count: number; monto: number };
+        vencidas: { count: number; monto: number };
+        tasaCobranza: number;
+    };
+    cobros: {
+        cobrados: { count: number; monto: number };
+        pendientes: { count: number; monto: number };
+        vencidos: { count: number; monto: number };
+    };
+    devoluciones: {
+        cantidad: number;
+        unidadesDevueltas: number;
+        montoTotal: number;
+        tasaDevolucion: number;
+    };
+    topProductos: {
+        productoId: number;
+        nombre: string;
+        codigo?: string;
+        categoria: string;
+        unidadesVendidas: number;
+        ingresos: number;
+    }[];
+    ventasPorCategoria: {
+        categoria: string;
+        cantidad: number;
+        ingresos: number;
+        color: string;
+    }[];
+    ventasPorVendedor: {
+        vendedorId: number;
+        nombre: string;
+        totalVentas: number;
+        cantidadVentas: number;
+    }[];
+    topClientes: {
+        clienteId: number;
+        nombre: string;
+        tipo: string;
+        totalCompras: number;
+        cantidadCompras: number;
+    }[];
+    inventario: {
+        totalProductos: number;
+        lotesActivos: number;
+        lotesProxVencer: number;
+        lotesVencidos: number;
+        movimientos: { tipo: string; count: number; totalUnidades: number }[];
+    };
+    promociones: {
+        activas: number;
+        expiradas: number;
+        proximas: number;
+    };
+    clientes: {
+        activos: number;
+        bloqueados: number;
+        suspendidos: number;
+        saldoCreditoTotal: number;
+        limiteCreditoTotal: number;
+    };
+    ventasDiarias: { fecha: string; total: number }[];
+}
+
+export const reportsApi = {
+    getReporteGeneral: (filtros: FiltrosReporte) => {
+        const params = new URLSearchParams();
+        if (filtros.dias?.length) params.set('dias', filtros.dias.join(','));
+        if (filtros.semanas?.length) params.set('semanas', filtros.semanas.join(','));
+        if (filtros.anios?.length) params.set('anios', filtros.anios.join(','));
+        const qs = params.toString();
+        return get<ReporteGeneral>(`/reports/general${qs ? `?${qs}` : ''}`);
+    },
+};

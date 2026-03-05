@@ -9,6 +9,7 @@ import CobrosPage from './pages/CobrosPage';
 import PromocionesPage from './pages/PromocionesPage';
 import DevolucionesPage from './pages/DevolucionesPage';
 import BodegasPage from './pages/BodegasPage';
+import ReportesPage from './pages/ReportesPage';
 import './index.css';
 
 function NotFound() {
@@ -41,6 +42,7 @@ function App() {
                             <Route path="/promociones" element={<PromocionesPage />} />
                             <Route path="/devoluciones" element={<DevolucionesPage />} />
                             <Route path="/bodegas" element={<BodegasPage />} />
+                            <Route path="/reportes" element={<ReportesPage />} />
                             <Route path="*" element={<NotFound />} />
                         </Routes>
                     </div>

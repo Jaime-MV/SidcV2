@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
     LayoutDashboard, ShoppingCart, Package, Users, Truck,
     DollarSign, Tag, RotateCcw, Warehouse, Settings,
-    ChevronLeft, ChevronRight, Bell, AlertTriangle,
+    ChevronLeft, ChevronRight, Bell, AlertTriangle, FileBarChart,
 } from 'lucide-react';
 
 const navItems = [
@@ -16,6 +16,7 @@ const navItems = [
     { path: '/promociones', label: 'Promociones', icon: Tag },
     { path: '/devoluciones', label: 'Devoluciones', icon: RotateCcw },
     { path: '/bodegas', label: 'Bodegas', icon: Warehouse },
+    { path: '/reportes', label: 'Reportes', icon: FileBarChart },
 ];
 
 const alerts = [
