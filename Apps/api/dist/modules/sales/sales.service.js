@@ -59,7 +59,7 @@ let SalesService = class SalesService {
                 if (stockTotal < detalle.cantidad) {
                     throw new common_1.NotAcceptableException(`Stock insuficiente para "${producto.nombre}". Disponible: ${stockTotal}, Solicitado: ${detalle.cantidad}`);
                 }
-                const precioUnit = Number(producto.precioBase);
+                const precioUnit = Number(producto.precioVenta);
                 const pctDescuento = await this.promotionsService.getDescuentoVigente(producto.id);
                 const descuentoLinea = precioUnit * detalle.cantidad * (pctDescuento / 100);
                 const subtotalLinea = precioUnit * detalle.cantidad;
@@ -171,15 +171,31 @@ let SalesService = class SalesService {
             const devolucion = await tx.devolucion.create({
                 data: {
                     ventaId: dto.ventaId,
+                    productoId: dto.productoId,
                     motivo: dto.motivo,
+                    cantidad: dto.cantidad,
                     estado: 'PROCESADA',
                 },
-                include: { venta: true },
+                include: { venta: true, producto: true },
             });
             return devolucion;
         });
     }
     async getProductosMasVendidos(limit = 10) {
+        const estadisticas = await this.prisma.estadisticaProducto.findMany({
+            take: limit,
+            orderBy: { totalVendido: 'desc' },
+            include: { producto: { include: { categoria: true } } },
+        });
+        if (estadisticas.length > 0) {
+            return estadisticas.map((e) => ({
+                nombre: e.producto.nombre,
+                producto: e.producto,
+                totalVendido: Number(e.totalVendido),
+                unidades: Number(e.totalVendido),
+                ingresos: Number(e.ingresos ?? 0),
+            }));
+        }
         const result = await this.prisma.detalleVenta.groupBy({
             by: ['productoId'],
             _sum: { cantidad: true },
@@ -192,11 +208,48 @@ let SalesService = class SalesService {
                 include: { categoria: true },
             });
             return {
+                nombre: producto?.nombre ?? '',
                 producto,
                 totalVendido: item._sum.cantidad,
+                unidades: item._sum.cantidad,
+                ingresos: 0,
             };
         }));
         return productos;
+    }
+    async findAllFacturas(page = 1, pageSize = 20, estado) {
+        const skip = (page - 1) * pageSize;
+        const where = estado ? { estado: estado } : {};
+        const [items, total] = await Promise.all([
+            this.prisma.factura.findMany({
+                skip,
+                take: pageSize,
+                where,
+                include: {
+                    venta: { include: { cliente: true, vendedor: true } },
+                    cobros: { select: { monto: true } },
+                },
+                orderBy: { fechaEmision: 'desc' },
+            }),
+            this.prisma.factura.count({ where }),
+        ]);
+        return { items, total, page, pageSize, pages: Math.ceil(total / pageSize) };
+    }
+    async findAllDevoluciones(page = 1, pageSize = 20) {
+        const skip = (page - 1) * pageSize;
+        const [items, total] = await Promise.all([
+            this.prisma.devolucion.findMany({
+                skip,
+                take: pageSize,
+                include: {
+                    venta: { include: { cliente: true, vendedor: true, factura: true } },
+                    producto: true,
+                },
+                orderBy: { fecha: 'desc' },
+            }),
+            this.prisma.devolucion.count(),
+        ]);
+        return { items, total, page, pageSize, pages: Math.ceil(total / pageSize) };
     }
 };
 exports.SalesService = SalesService;

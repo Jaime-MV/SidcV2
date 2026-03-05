@@ -14,6 +14,7 @@ export declare class RoutesController {
         rutas: ({
             clientes: {
                 nombre: string;
+                codigo: string | null;
                 id: number;
                 identificacion: string;
                 direccion: string;
@@ -22,12 +23,25 @@ export declare class RoutesController {
                 limiteCredito: import("@prisma/client/runtime/library").Decimal;
                 diasCredito: number;
                 rutaId: number | null;
+                estado: import(".prisma/client").$Enums.EstadoCliente;
+                tipo: import(".prisma/client").$Enums.TipoCliente;
+                ultimaCompra: Date | null;
                 saldoActual: import("@prisma/client/runtime/library").Decimal;
             }[];
         } & {
             nombre: string;
             descripcion: string | null;
+            codigo: string | null;
             id: number;
+            vehiculo: string | null;
+            kmEstimados: number | null;
+            horaInicio: string | null;
+            horaFin: string | null;
+            departamento: string | null;
+            estado: import(".prisma/client").$Enums.EstadoRuta;
+            clientesTotal: number;
+            entregasHoy: number;
+            entregasCompletadas: number;
             vendedorId: number;
         })[];
     } & {
@@ -41,15 +55,16 @@ export declare class RoutesController {
             id: number;
             total: import("@prisma/client/runtime/library").Decimal;
             clienteId: number;
+            estado: import(".prisma/client").$Enums.EstadoVenta;
             vendedorId: number;
             fecha: Date;
-            estado: import(".prisma/client").$Enums.EstadoVenta;
             subtotal: import("@prisma/client/runtime/library").Decimal;
             descuentoTotal: import("@prisma/client/runtime/library").Decimal;
         }[];
         rutas: ({
             clientes: {
                 nombre: string;
+                codigo: string | null;
                 id: number;
                 identificacion: string;
                 direccion: string;
@@ -58,12 +73,25 @@ export declare class RoutesController {
                 limiteCredito: import("@prisma/client/runtime/library").Decimal;
                 diasCredito: number;
                 rutaId: number | null;
+                estado: import(".prisma/client").$Enums.EstadoCliente;
+                tipo: import(".prisma/client").$Enums.TipoCliente;
+                ultimaCompra: Date | null;
                 saldoActual: import("@prisma/client/runtime/library").Decimal;
             }[];
         } & {
             nombre: string;
             descripcion: string | null;
+            codigo: string | null;
             id: number;
+            vehiculo: string | null;
+            kmEstimados: number | null;
+            horaInicio: string | null;
+            horaFin: string | null;
+            departamento: string | null;
+            estado: import(".prisma/client").$Enums.EstadoRuta;
+            clientesTotal: number;
+            entregasHoy: number;
+            entregasCompletadas: number;
             vendedorId: number;
         })[];
     } & {
@@ -88,7 +116,17 @@ export declare class RoutesController {
     } & {
         nombre: string;
         descripcion: string | null;
+        codigo: string | null;
         id: number;
+        vehiculo: string | null;
+        kmEstimados: number | null;
+        horaInicio: string | null;
+        horaFin: string | null;
+        departamento: string | null;
+        estado: import(".prisma/client").$Enums.EstadoRuta;
+        clientesTotal: number;
+        entregasHoy: number;
+        entregasCompletadas: number;
         vendedorId: number;
     }>;
     findAllRutas(): Promise<({
@@ -100,6 +138,7 @@ export declare class RoutesController {
         };
         clientes: {
             nombre: string;
+            codigo: string | null;
             id: number;
             identificacion: string;
             direccion: string;
@@ -108,12 +147,25 @@ export declare class RoutesController {
             limiteCredito: import("@prisma/client/runtime/library").Decimal;
             diasCredito: number;
             rutaId: number | null;
+            estado: import(".prisma/client").$Enums.EstadoCliente;
+            tipo: import(".prisma/client").$Enums.TipoCliente;
+            ultimaCompra: Date | null;
             saldoActual: import("@prisma/client/runtime/library").Decimal;
         }[];
     } & {
         nombre: string;
         descripcion: string | null;
+        codigo: string | null;
         id: number;
+        vehiculo: string | null;
+        kmEstimados: number | null;
+        horaInicio: string | null;
+        horaFin: string | null;
+        departamento: string | null;
+        estado: import(".prisma/client").$Enums.EstadoRuta;
+        clientesTotal: number;
+        entregasHoy: number;
+        entregasCompletadas: number;
         vendedorId: number;
     })[]>;
     findRutaById(id: number): Promise<{
@@ -125,6 +177,7 @@ export declare class RoutesController {
         };
         clientes: {
             nombre: string;
+            codigo: string | null;
             id: number;
             identificacion: string;
             direccion: string;
@@ -133,12 +186,25 @@ export declare class RoutesController {
             limiteCredito: import("@prisma/client/runtime/library").Decimal;
             diasCredito: number;
             rutaId: number | null;
+            estado: import(".prisma/client").$Enums.EstadoCliente;
+            tipo: import(".prisma/client").$Enums.TipoCliente;
+            ultimaCompra: Date | null;
             saldoActual: import("@prisma/client/runtime/library").Decimal;
         }[];
     } & {
         nombre: string;
         descripcion: string | null;
+        codigo: string | null;
         id: number;
+        vehiculo: string | null;
+        kmEstimados: number | null;
+        horaInicio: string | null;
+        horaFin: string | null;
+        departamento: string | null;
+        estado: import(".prisma/client").$Enums.EstadoRuta;
+        clientesTotal: number;
+        entregasHoy: number;
+        entregasCompletadas: number;
         vendedorId: number;
     }>;
 }

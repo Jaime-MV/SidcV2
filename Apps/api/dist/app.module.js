@@ -14,6 +14,7 @@ const client_module_1 = require("./modules/client/client.module");
 const routes_module_1 = require("./modules/routes/routes.module");
 const promotions_module_1 = require("./modules/promotions/promotions.module");
 const sales_module_1 = require("./modules/sales/sales.module");
+const dashboard_module_1 = require("./modules/dashboard/dashboard.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -26,6 +27,7 @@ exports.AppModule = AppModule = __decorate([
             routes_module_1.RoutesModule,
             promotions_module_1.PromotionsModule,
             sales_module_1.SalesModule,
+            dashboard_module_1.DashboardModule,
         ],
     })
 ], AppModule);

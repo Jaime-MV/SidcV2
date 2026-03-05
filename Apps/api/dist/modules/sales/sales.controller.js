@@ -31,6 +31,12 @@ let SalesController = class SalesController {
     getProductosMasVendidos(limit) {
         return this.salesService.getProductosMasVendidos(limit ? parseInt(limit) : 10);
     }
+    findAllFacturas(page, pageSize, estado) {
+        return this.salesService.findAllFacturas(page ? parseInt(page) : 1, pageSize ? parseInt(pageSize) : 20, estado);
+    }
+    findAllDevoluciones(page, pageSize) {
+        return this.salesService.findAllDevoluciones(page ? parseInt(page) : 1, pageSize ? parseInt(pageSize) : 20);
+    }
     findOne(id) {
         return this.salesService.findOne(id);
     }
@@ -63,6 +69,23 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], SalesController.prototype, "getProductosMasVendidos", null);
+__decorate([
+    (0, common_1.Get)('facturas'),
+    __param(0, (0, common_1.Query)('page')),
+    __param(1, (0, common_1.Query)('pageSize')),
+    __param(2, (0, common_1.Query)('estado')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String]),
+    __metadata("design:returntype", void 0)
+], SalesController.prototype, "findAllFacturas", null);
+__decorate([
+    (0, common_1.Get)('devoluciones'),
+    __param(0, (0, common_1.Query)('page')),
+    __param(1, (0, common_1.Query)('pageSize')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], SalesController.prototype, "findAllDevoluciones", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),

@@ -9,9 +9,14 @@ export declare class PromotionsService {
                 nombre: string;
                 descripcion: string | null;
                 codigoBarras: string | null;
-                precioBase: import("@prisma/client/runtime/library").Decimal;
                 categoriaId: number;
+                codigo: string | null;
                 id: number;
+                precioCompra: import("@prisma/client/runtime/library").Decimal;
+                precioVenta: import("@prisma/client/runtime/library").Decimal;
+                minStock: number;
+                estadoProducto: import(".prisma/client").$Enums.EstadoProducto;
+                bodegaId: number | null;
             };
         } & {
             productoId: number;
@@ -21,11 +26,18 @@ export declare class PromotionsService {
     } & {
         nombre: string;
         descripcion: string | null;
+        codigo: string | null;
         id: number;
+        estado: import(".prisma/client").$Enums.EstadoPromocion;
+        tipo: import(".prisma/client").$Enums.TipoPromocion;
         fechaInicio: Date;
         fechaFin: Date;
         porcentajeDesc: import("@prisma/client/runtime/library").Decimal;
         activa: boolean;
+        canal: string | null;
+        usos: number;
+        presupuesto: import("@prisma/client/runtime/library").Decimal;
+        gastado: import("@prisma/client/runtime/library").Decimal;
     }>;
     findAll(): Promise<({
         productos: ({
@@ -33,9 +45,14 @@ export declare class PromotionsService {
                 nombre: string;
                 descripcion: string | null;
                 codigoBarras: string | null;
-                precioBase: import("@prisma/client/runtime/library").Decimal;
                 categoriaId: number;
+                codigo: string | null;
                 id: number;
+                precioCompra: import("@prisma/client/runtime/library").Decimal;
+                precioVenta: import("@prisma/client/runtime/library").Decimal;
+                minStock: number;
+                estadoProducto: import(".prisma/client").$Enums.EstadoProducto;
+                bodegaId: number | null;
             };
         } & {
             productoId: number;
@@ -45,11 +62,18 @@ export declare class PromotionsService {
     } & {
         nombre: string;
         descripcion: string | null;
+        codigo: string | null;
         id: number;
+        estado: import(".prisma/client").$Enums.EstadoPromocion;
+        tipo: import(".prisma/client").$Enums.TipoPromocion;
         fechaInicio: Date;
         fechaFin: Date;
         porcentajeDesc: import("@prisma/client/runtime/library").Decimal;
         activa: boolean;
+        canal: string | null;
+        usos: number;
+        presupuesto: import("@prisma/client/runtime/library").Decimal;
+        gastado: import("@prisma/client/runtime/library").Decimal;
     })[]>;
     findVigentes(): Promise<({
         productos: ({
@@ -57,9 +81,14 @@ export declare class PromotionsService {
                 nombre: string;
                 descripcion: string | null;
                 codigoBarras: string | null;
-                precioBase: import("@prisma/client/runtime/library").Decimal;
                 categoriaId: number;
+                codigo: string | null;
                 id: number;
+                precioCompra: import("@prisma/client/runtime/library").Decimal;
+                precioVenta: import("@prisma/client/runtime/library").Decimal;
+                minStock: number;
+                estadoProducto: import(".prisma/client").$Enums.EstadoProducto;
+                bodegaId: number | null;
             };
         } & {
             productoId: number;
@@ -69,11 +98,18 @@ export declare class PromotionsService {
     } & {
         nombre: string;
         descripcion: string | null;
+        codigo: string | null;
         id: number;
+        estado: import(".prisma/client").$Enums.EstadoPromocion;
+        tipo: import(".prisma/client").$Enums.TipoPromocion;
         fechaInicio: Date;
         fechaFin: Date;
         porcentajeDesc: import("@prisma/client/runtime/library").Decimal;
         activa: boolean;
+        canal: string | null;
+        usos: number;
+        presupuesto: import("@prisma/client/runtime/library").Decimal;
+        gastado: import("@prisma/client/runtime/library").Decimal;
     })[]>;
     findById(id: number): Promise<{
         productos: ({
@@ -81,9 +117,14 @@ export declare class PromotionsService {
                 nombre: string;
                 descripcion: string | null;
                 codigoBarras: string | null;
-                precioBase: import("@prisma/client/runtime/library").Decimal;
                 categoriaId: number;
+                codigo: string | null;
                 id: number;
+                precioCompra: import("@prisma/client/runtime/library").Decimal;
+                precioVenta: import("@prisma/client/runtime/library").Decimal;
+                minStock: number;
+                estadoProducto: import(".prisma/client").$Enums.EstadoProducto;
+                bodegaId: number | null;
             };
         } & {
             productoId: number;
@@ -93,11 +134,18 @@ export declare class PromotionsService {
     } & {
         nombre: string;
         descripcion: string | null;
+        codigo: string | null;
         id: number;
+        estado: import(".prisma/client").$Enums.EstadoPromocion;
+        tipo: import(".prisma/client").$Enums.TipoPromocion;
         fechaInicio: Date;
         fechaFin: Date;
         porcentajeDesc: import("@prisma/client/runtime/library").Decimal;
         activa: boolean;
+        canal: string | null;
+        usos: number;
+        presupuesto: import("@prisma/client/runtime/library").Decimal;
+        gastado: import("@prisma/client/runtime/library").Decimal;
     }>;
     toggleActiva(id: number): Promise<{
         productos: ({
@@ -105,9 +153,14 @@ export declare class PromotionsService {
                 nombre: string;
                 descripcion: string | null;
                 codigoBarras: string | null;
-                precioBase: import("@prisma/client/runtime/library").Decimal;
                 categoriaId: number;
+                codigo: string | null;
                 id: number;
+                precioCompra: import("@prisma/client/runtime/library").Decimal;
+                precioVenta: import("@prisma/client/runtime/library").Decimal;
+                minStock: number;
+                estadoProducto: import(".prisma/client").$Enums.EstadoProducto;
+                bodegaId: number | null;
             };
         } & {
             productoId: number;
@@ -117,11 +170,18 @@ export declare class PromotionsService {
     } & {
         nombre: string;
         descripcion: string | null;
+        codigo: string | null;
         id: number;
+        estado: import(".prisma/client").$Enums.EstadoPromocion;
+        tipo: import(".prisma/client").$Enums.TipoPromocion;
         fechaInicio: Date;
         fechaFin: Date;
         porcentajeDesc: import("@prisma/client/runtime/library").Decimal;
         activa: boolean;
+        canal: string | null;
+        usos: number;
+        presupuesto: import("@prisma/client/runtime/library").Decimal;
+        gastado: import("@prisma/client/runtime/library").Decimal;
     }>;
     getDescuentoVigente(productoId: number): Promise<number>;
 }

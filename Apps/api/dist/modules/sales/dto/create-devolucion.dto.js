@@ -14,6 +14,8 @@ const class_validator_1 = require("class-validator");
 class CreateDevolucionDto {
     ventaId;
     motivo;
+    productoId;
+    cantidad;
 }
 exports.CreateDevolucionDto = CreateDevolucionDto;
 __decorate([
@@ -26,4 +28,14 @@ __decorate([
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], CreateDevolucionDto.prototype, "motivo", void 0);
+__decorate([
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.IsPositive)(),
+    __metadata("design:type", Number)
+], CreateDevolucionDto.prototype, "productoId", void 0);
+__decorate([
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.IsPositive)(),
+    __metadata("design:type", Number)
+], CreateDevolucionDto.prototype, "cantidad", void 0);
 //# sourceMappingURL=create-devolucion.dto.js.map

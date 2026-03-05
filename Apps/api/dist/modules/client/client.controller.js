@@ -25,17 +25,20 @@ let ClientController = class ClientController {
     createCliente(dto) {
         return this.clientService.createCliente(dto);
     }
-    findAllClientes(page, pageSize) {
-        return this.clientService.findAllClientes(page ? parseInt(page) : 1, pageSize ? parseInt(pageSize) : 20);
+    findAllClientes(page, pageSize, estado, tipo) {
+        return this.clientService.findAllClientes(page ? parseInt(page) : 1, pageSize ? parseInt(pageSize) : 20, estado, tipo);
+    }
+    createCobro(dto) {
+        return this.clientService.createCobro(dto);
+    }
+    findAllCobros(page, pageSize, estado) {
+        return this.clientService.findAllCobros(page ? parseInt(page) : 1, pageSize ? parseInt(pageSize) : 50, estado);
     }
     findClienteById(id) {
         return this.clientService.findClienteById(id);
     }
     updateCliente(id, dto) {
         return this.clientService.updateCliente(id, dto);
-    }
-    createCobro(dto) {
-        return this.clientService.createCobro(dto);
     }
     findCobrosByCliente(id) {
         return this.clientService.findCobrosByCliente(id);
@@ -54,10 +57,29 @@ __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Query)('page')),
     __param(1, (0, common_1.Query)('pageSize')),
+    __param(2, (0, common_1.Query)('estado')),
+    __param(3, (0, common_1.Query)('tipo')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], ClientController.prototype, "findAllClientes", null);
+__decorate([
+    (0, common_1.Post)('cobros'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.CREATED),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [create_cobro_dto_1.CreateCobroDto]),
+    __metadata("design:returntype", void 0)
+], ClientController.prototype, "createCobro", null);
+__decorate([
+    (0, common_1.Get)('cobros'),
+    __param(0, (0, common_1.Query)('page')),
+    __param(1, (0, common_1.Query)('pageSize')),
+    __param(2, (0, common_1.Query)('estado')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String]),
+    __metadata("design:returntype", void 0)
+], ClientController.prototype, "findAllCobros", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
@@ -73,14 +95,6 @@ __decorate([
     __metadata("design:paramtypes", [Number, Object]),
     __metadata("design:returntype", void 0)
 ], ClientController.prototype, "updateCliente", null);
-__decorate([
-    (0, common_1.Post)('cobros'),
-    (0, common_1.HttpCode)(common_1.HttpStatus.CREATED),
-    __param(0, (0, common_1.Body)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [create_cobro_dto_1.CreateCobroDto]),
-    __metadata("design:returntype", void 0)
-], ClientController.prototype, "createCobro", null);
 __decorate([
     (0, common_1.Get)(':id/cobros'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),

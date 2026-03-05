@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateCategoriaDto } from './dto/create-categoria.dto';
 import { CreateProductoDto } from './dto/create-producto.dto';
 import { CreateLoteDto } from './dto/create-lote.dto';
+import { CreateBodegaDto } from './dto/create-bodega.dto';
 
 @Injectable()
 export class InventoryService {
@@ -134,5 +135,33 @@ export class InventoryService {
             include: { lote: { include: { producto: true } } },
             orderBy: { fechaMovimiento: 'desc' },
         });
+    }
+
+    // ─── BODEGAS ───────────────────────────────────────────────────
+    async createBodega(dto: CreateBodegaDto) {
+        return this.prisma.bodega.create({ data: dto, include: { productos: true } });
+    }
+
+    async findAllBodegas() {
+        const bodegas = await this.prisma.bodega.findMany({
+            include: { productos: { select: { id: true } } },
+            orderBy: { id: 'asc' },
+        });
+        // Enriquecer con cantidad de SKUs
+        return bodegas.map(b => ({ ...b, productos: b.productos.length }));
+    }
+
+    async findBodegaById(id: number) {
+        const bodega = await this.prisma.bodega.findUnique({
+            where: { id },
+            include: { productos: { include: { categoria: true, lotes: true } } },
+        });
+        if (!bodega) throw new NotFoundException(`Bodega con ID ${id} no encontrada`);
+        return bodega;
+    }
+
+    async updateBodega(id: number, dto: Partial<CreateBodegaDto>) {
+        await this.findBodegaById(id);
+        return this.prisma.bodega.update({ where: { id }, data: dto });
     }
 }

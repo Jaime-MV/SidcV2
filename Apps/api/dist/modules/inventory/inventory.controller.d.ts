@@ -2,12 +2,14 @@ import { InventoryService } from './inventory.service';
 import { CreateCategoriaDto } from './dto/create-categoria.dto';
 import { CreateProductoDto } from './dto/create-producto.dto';
 import { CreateLoteDto } from './dto/create-lote.dto';
+import { CreateBodegaDto } from './dto/create-bodega.dto';
 export declare class InventoryController {
     private readonly inventoryService;
     constructor(inventoryService: InventoryService);
     createCategoria(dto: CreateCategoriaDto): Promise<{
         nombre: string;
         descripcion: string | null;
+        colorHex: string | null;
         id: number;
     }>;
     findAllCategorias(): Promise<({
@@ -15,13 +17,19 @@ export declare class InventoryController {
             nombre: string;
             descripcion: string | null;
             codigoBarras: string | null;
-            precioBase: import("@prisma/client/runtime/library").Decimal;
             categoriaId: number;
+            codigo: string | null;
             id: number;
+            precioCompra: import("@prisma/client/runtime/library").Decimal;
+            precioVenta: import("@prisma/client/runtime/library").Decimal;
+            minStock: number;
+            estadoProducto: import(".prisma/client").$Enums.EstadoProducto;
+            bodegaId: number | null;
         }[];
     } & {
         nombre: string;
         descripcion: string | null;
+        colorHex: string | null;
         id: number;
     })[]>;
     findCategoriaById(id: number): Promise<{
@@ -29,34 +37,47 @@ export declare class InventoryController {
             nombre: string;
             descripcion: string | null;
             codigoBarras: string | null;
-            precioBase: import("@prisma/client/runtime/library").Decimal;
             categoriaId: number;
+            codigo: string | null;
             id: number;
+            precioCompra: import("@prisma/client/runtime/library").Decimal;
+            precioVenta: import("@prisma/client/runtime/library").Decimal;
+            minStock: number;
+            estadoProducto: import(".prisma/client").$Enums.EstadoProducto;
+            bodegaId: number | null;
         }[];
     } & {
         nombre: string;
         descripcion: string | null;
+        colorHex: string | null;
         id: number;
     }>;
     createProducto(dto: CreateProductoDto): Promise<{
         categoria: {
             nombre: string;
             descripcion: string | null;
+            colorHex: string | null;
             id: number;
         };
     } & {
         nombre: string;
         descripcion: string | null;
         codigoBarras: string | null;
-        precioBase: import("@prisma/client/runtime/library").Decimal;
         categoriaId: number;
+        codigo: string | null;
         id: number;
+        precioCompra: import("@prisma/client/runtime/library").Decimal;
+        precioVenta: import("@prisma/client/runtime/library").Decimal;
+        minStock: number;
+        estadoProducto: import(".prisma/client").$Enums.EstadoProducto;
+        bodegaId: number | null;
     }>;
     findAllProductos(page?: string, pageSize?: string): Promise<{
         items: ({
             categoria: {
                 nombre: string;
                 descripcion: string | null;
+                colorHex: string | null;
                 id: number;
             };
             lotes: {
@@ -72,9 +93,14 @@ export declare class InventoryController {
             nombre: string;
             descripcion: string | null;
             codigoBarras: string | null;
-            precioBase: import("@prisma/client/runtime/library").Decimal;
             categoriaId: number;
+            codigo: string | null;
             id: number;
+            precioCompra: import("@prisma/client/runtime/library").Decimal;
+            precioVenta: import("@prisma/client/runtime/library").Decimal;
+            minStock: number;
+            estadoProducto: import(".prisma/client").$Enums.EstadoProducto;
+            bodegaId: number | null;
         })[];
         total: number;
         page: number;
@@ -85,6 +111,7 @@ export declare class InventoryController {
         categoria: {
             nombre: string;
             descripcion: string | null;
+            colorHex: string | null;
             id: number;
         };
         lotes: {
@@ -100,18 +127,28 @@ export declare class InventoryController {
         nombre: string;
         descripcion: string | null;
         codigoBarras: string | null;
-        precioBase: import("@prisma/client/runtime/library").Decimal;
         categoriaId: number;
+        codigo: string | null;
         id: number;
+        precioCompra: import("@prisma/client/runtime/library").Decimal;
+        precioVenta: import("@prisma/client/runtime/library").Decimal;
+        minStock: number;
+        estadoProducto: import(".prisma/client").$Enums.EstadoProducto;
+        bodegaId: number | null;
     }>;
     createLote(dto: CreateLoteDto): Promise<{
         producto: {
             nombre: string;
             descripcion: string | null;
             codigoBarras: string | null;
-            precioBase: import("@prisma/client/runtime/library").Decimal;
             categoriaId: number;
+            codigo: string | null;
             id: number;
+            precioCompra: import("@prisma/client/runtime/library").Decimal;
+            precioVenta: import("@prisma/client/runtime/library").Decimal;
+            minStock: number;
+            estadoProducto: import(".prisma/client").$Enums.EstadoProducto;
+            bodegaId: number | null;
         };
     } & {
         numeroLote: string;
@@ -127,9 +164,14 @@ export declare class InventoryController {
             nombre: string;
             descripcion: string | null;
             codigoBarras: string | null;
-            precioBase: import("@prisma/client/runtime/library").Decimal;
             categoriaId: number;
+            codigo: string | null;
             id: number;
+            precioCompra: import("@prisma/client/runtime/library").Decimal;
+            precioVenta: import("@prisma/client/runtime/library").Decimal;
+            minStock: number;
+            estadoProducto: import(".prisma/client").$Enums.EstadoProducto;
+            bodegaId: number | null;
         };
     } & {
         numeroLote: string;
@@ -145,9 +187,14 @@ export declare class InventoryController {
             nombre: string;
             descripcion: string | null;
             codigoBarras: string | null;
-            precioBase: import("@prisma/client/runtime/library").Decimal;
             categoriaId: number;
+            codigo: string | null;
             id: number;
+            precioCompra: import("@prisma/client/runtime/library").Decimal;
+            precioVenta: import("@prisma/client/runtime/library").Decimal;
+            minStock: number;
+            estadoProducto: import(".prisma/client").$Enums.EstadoProducto;
+            bodegaId: number | null;
         };
         movimientos: {
             id: number;
@@ -171,15 +218,21 @@ export declare class InventoryController {
             categoria: {
                 nombre: string;
                 descripcion: string | null;
+                colorHex: string | null;
                 id: number;
             };
         } & {
             nombre: string;
             descripcion: string | null;
             codigoBarras: string | null;
-            precioBase: import("@prisma/client/runtime/library").Decimal;
             categoriaId: number;
+            codigo: string | null;
             id: number;
+            precioCompra: import("@prisma/client/runtime/library").Decimal;
+            precioVenta: import("@prisma/client/runtime/library").Decimal;
+            minStock: number;
+            estadoProducto: import(".prisma/client").$Enums.EstadoProducto;
+            bodegaId: number | null;
         };
     } & {
         numeroLote: string;
@@ -195,15 +248,21 @@ export declare class InventoryController {
             categoria: {
                 nombre: string;
                 descripcion: string | null;
+                colorHex: string | null;
                 id: number;
             };
         } & {
             nombre: string;
             descripcion: string | null;
             codigoBarras: string | null;
-            precioBase: import("@prisma/client/runtime/library").Decimal;
             categoriaId: number;
+            codigo: string | null;
             id: number;
+            precioCompra: import("@prisma/client/runtime/library").Decimal;
+            precioVenta: import("@prisma/client/runtime/library").Decimal;
+            minStock: number;
+            estadoProducto: import(".prisma/client").$Enums.EstadoProducto;
+            bodegaId: number | null;
         };
     } & {
         numeroLote: string;
@@ -220,9 +279,14 @@ export declare class InventoryController {
                 nombre: string;
                 descripcion: string | null;
                 codigoBarras: string | null;
-                precioBase: import("@prisma/client/runtime/library").Decimal;
                 categoriaId: number;
+                codigo: string | null;
                 id: number;
+                precioCompra: import("@prisma/client/runtime/library").Decimal;
+                precioVenta: import("@prisma/client/runtime/library").Decimal;
+                minStock: number;
+                estadoProducto: import(".prisma/client").$Enums.EstadoProducto;
+                bodegaId: number | null;
             };
         } & {
             numeroLote: string;
@@ -241,4 +305,85 @@ export declare class InventoryController {
         referencia: string | null;
         loteId: number;
     })[]>;
+    createBodega(dto: CreateBodegaDto): Promise<{
+        productos: {
+            nombre: string;
+            descripcion: string | null;
+            codigoBarras: string | null;
+            categoriaId: number;
+            codigo: string | null;
+            id: number;
+            precioCompra: import("@prisma/client/runtime/library").Decimal;
+            precioVenta: import("@prisma/client/runtime/library").Decimal;
+            minStock: number;
+            estadoProducto: import(".prisma/client").$Enums.EstadoProducto;
+            bodegaId: number | null;
+        }[];
+    } & {
+        nombre: string;
+        codigo: string | null;
+        ubicacion: string | null;
+        capacidadTotal: number;
+        encargado: string | null;
+        id: number;
+        capacidadUsada: number;
+    }>;
+    findAllBodegas(): Promise<{
+        productos: number;
+        nombre: string;
+        codigo: string | null;
+        ubicacion: string | null;
+        capacidadTotal: number;
+        encargado: string | null;
+        id: number;
+        capacidadUsada: number;
+    }[]>;
+    findBodegaById(id: number): Promise<{
+        productos: ({
+            categoria: {
+                nombre: string;
+                descripcion: string | null;
+                colorHex: string | null;
+                id: number;
+            };
+            lotes: {
+                numeroLote: string;
+                fechaFabricacion: Date;
+                fechaVencimiento: Date;
+                cantidadInicial: number;
+                productoId: number;
+                id: number;
+                cantidadDisponible: number;
+            }[];
+        } & {
+            nombre: string;
+            descripcion: string | null;
+            codigoBarras: string | null;
+            categoriaId: number;
+            codigo: string | null;
+            id: number;
+            precioCompra: import("@prisma/client/runtime/library").Decimal;
+            precioVenta: import("@prisma/client/runtime/library").Decimal;
+            minStock: number;
+            estadoProducto: import(".prisma/client").$Enums.EstadoProducto;
+            bodegaId: number | null;
+        })[];
+    } & {
+        nombre: string;
+        codigo: string | null;
+        ubicacion: string | null;
+        capacidadTotal: number;
+        encargado: string | null;
+        id: number;
+        capacidadUsada: number;
+    }>;
+    updateBodega(id: number, dto: Partial<CreateBodegaDto>): Promise<{
+        nombre: string;
+        codigo: string | null;
+        ubicacion: string | null;
+        capacidadTotal: number;
+        encargado: string | null;
+        id: number;
+        capacidadUsada: number;
+    }>;
 }

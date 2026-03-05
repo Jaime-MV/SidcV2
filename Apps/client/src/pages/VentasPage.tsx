@@ -1,0 +1,202 @@
+import { useState, useEffect } from 'react';
+import { FileText, ShoppingCart, TrendingUp, Clock, XCircle, Plus, Search, Filter, Download, Eye, RefreshCw, AlertTriangle } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Header } from '../components/layout/Header';
+import { Badge } from '../components/ui/Badge';
+import { StatCard } from '../components/ui/StatCard';
+import { ventasApi, dashboardApi, type Factura, type ResumenMensual, estadoFacturaLabel } from '../services/api';
+
+const fmt = (n: number) => new Intl.NumberFormat('es-SV', { style: 'currency', currency: 'USD' }).format(n);
+
+export default function VentasPage() {
+    const [facturas, setFacturas] = useState<Factura[]>([]);
+    const [ventas, setVentas] = useState<ResumenMensual[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [search, setSearch] = useState('');
+    const [filterEstado, setFilterEstado] = useState('Todos');
+
+    const loadData = async () => {
+        setLoading(true); setError(null);
+        try {
+            const [facturasData, ventasData] = await Promise.all([
+                ventasApi.getFacturas(1, 200),
+                dashboardApi.getVentasMensuales(),
+            ]);
+            setFacturas(facturasData.items);
+            setVentas(ventasData);
+        } catch (e: unknown) {
+            setError(e instanceof Error ? e.message : 'Error al cargar ventas');
+        } finally { setLoading(false); }
+    };
+
+    useEffect(() => { loadData(); }, []);
+
+    const filtered = facturas.filter(f => {
+        const clienteNombre = f.venta?.cliente?.nombre ?? '';
+        const vendedor = f.venta?.vendedor?.nombre ?? '';
+        const matchSearch = f.numeroFactura.toLowerCase().includes(search.toLowerCase()) ||
+            clienteNombre.toLowerCase().includes(search.toLowerCase()) ||
+            vendedor.toLowerCase().includes(search.toLowerCase());
+        const estadoLabel = estadoFacturaLabel[f.estado] ?? f.estado;
+        const matchEstado = filterEstado === 'Todos' || estadoLabel === filterEstado;
+        return matchSearch && matchEstado;
+    });
+
+    const totalPendiente = facturas.filter(f => f.estado === 'CREADA' || f.estado === 'PAGADA_PARCIALMENTE').reduce((s, f) => s + Number(f.total), 0);
+    const totalVencido = facturas.filter(f => f.estado === 'VENCIDA').reduce((s, f) => s + Number(f.total), 0);
+    const totalCobrado = facturas.filter(f => f.estado === 'PAGADA').reduce((s, f) => s + Number(f.total), 0);
+
+    const estadoBadge = (e: string) => {
+        const label = estadoFacturaLabel[e] ?? e;
+        if (e === 'PAGADA') return <Badge label={label} variant="success" />;
+        if (e === 'CREADA' || e === 'PAGADA_PARCIALMENTE') return <Badge label={label} variant="warning" />;
+        if (e === 'VENCIDA') return <Badge label={label} variant="danger" />;
+        return <Badge label={label} variant="neutral" />;
+    };
+
+    if (loading) return (
+        <div className="flex flex-col h-full">
+            <Header title="Ventas & Facturación" subtitle="Cargando..." />
+            <div className="flex-1 flex items-center justify-center"><RefreshCw className="w-8 h-8 text-blue-500 animate-spin" /></div>
+        </div>
+    );
+
+    if (error) return (
+        <div className="flex flex-col h-full">
+            <Header title="Ventas & Facturación" subtitle="Error" onRefresh={loadData} />
+            <div className="flex-1 flex items-center justify-center p-8">
+                <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center max-w-md">
+                    <AlertTriangle className="w-10 h-10 text-red-500 mx-auto mb-3" />
+                    <p className="text-red-700 font-medium mb-1">{error}</p>
+                    <button onClick={loadData} className="mt-3 bg-red-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-red-700">Reintentar</button>
+                </div>
+            </div>
+        </div>
+    );
+
+    return (
+        <div className="flex flex-col h-full">
+            <Header title="Ventas & Facturación" subtitle="Gestión de ventas, facturas y estados de cobro" onRefresh={loadData} />
+            <div className="flex-1 p-6 space-y-5 overflow-y-auto">
+
+                {/* ===== STAT CARDS ===== */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <StatCard title="Ventas del Mes" value={fmt(ventas[ventas.length - 1]?.ventas ?? 0)} icon={ShoppingCart} iconColor="text-blue-600" iconBg="bg-blue-100" />
+                    <StatCard
+                        title="Por Cobrar"
+                        value={fmt(totalPendiente)}
+                        subtitle={`${facturas.filter(f => f.estado === 'CREADA' || f.estado === 'PAGADA_PARCIALMENTE').length} facturas`}
+                        icon={Clock}
+                        iconColor="text-amber-600"
+                        iconBg="bg-amber-100"
+                    />
+                    <StatCard
+                        title="Cobrado"
+                        value={fmt(totalCobrado)}
+                        subtitle={`${facturas.filter(f => f.estado === 'PAGADA').length} facturas`}
+                        icon={TrendingUp}
+                        iconColor="text-emerald-600"
+                        iconBg="bg-emerald-100"
+                    />
+                    <StatCard
+                        title="Facturas Vencidas"
+                        value={fmt(totalVencido)}
+                        subtitle={`${facturas.filter(f => f.estado === 'VENCIDA').length} facturas`}
+                        icon={XCircle}
+                        iconColor="text-red-600"
+                        iconBg="bg-red-100"
+                        alert={facturas.some(f => f.estado === 'VENCIDA')}
+                    />
+                </div>
+
+                {/* ===== GRÁFICO MENSUAL ===== */}
+                {ventas.length > 0 && (
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                        <h3 className="font-medium text-gray-900 mb-4">Historial de Ventas Mensual</h3>
+                        <ResponsiveContainer width="100%" height={200}>
+                            <BarChart data={ventas} margin={{ top: 5, right: 20, left: 0, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                                <XAxis dataKey="mesLabel" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                                <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
+                                <Tooltip formatter={(v: number) => [fmt(v), '']} contentStyle={{ fontSize: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }} />
+                                <Bar dataKey="ventas" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Ventas" />
+                                <Bar dataKey="devoluciones" fill="#f87171" radius={[4, 4, 0, 0]} name="Devoluciones" />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                )}
+
+                {/* ===== TABLA ===== */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                        <h3 className="font-medium text-gray-900">Registro de Facturas</h3>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <div className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-2 w-52">
+                                <Search className="w-3.5 h-3.5 text-gray-400" />
+                                <input type="text" placeholder="Buscar factura, cliente..." value={search} onChange={e => setSearch(e.target.value)} className="bg-transparent text-xs text-gray-600 placeholder-gray-400 outline-none w-full" />
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <Filter className="w-3.5 h-3.5 text-gray-400" />
+                                <select value={filterEstado} onChange={e => setFilterEstado(e.target.value)} className="bg-gray-100 rounded-lg px-3 py-2 text-xs text-gray-600 outline-none">
+                                    <option value="Todos">Todos</option>
+                                    <option>Pagada</option>
+                                    <option>Pendiente</option>
+                                    <option>Parcial</option>
+                                    <option>Vencida</option>
+                                    <option>Anulada</option>
+                                </select>
+                            </div>
+                            <button className="flex items-center gap-1.5 bg-gray-100 text-gray-600 text-xs px-3 py-2 rounded-lg hover:bg-gray-200 transition-colors">
+                                <Download className="w-3.5 h-3.5" />Exportar
+                            </button>
+                            <button className="flex items-center gap-1.5 bg-blue-600 text-white text-xs px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                                <Plus className="w-3.5 h-3.5" />Nueva Venta
+                            </button>
+                        </div>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr className="border-b border-gray-100">
+                                    <th className="text-left text-xs text-gray-400 pb-3 font-medium">Factura</th>
+                                    <th className="text-left text-xs text-gray-400 pb-3 font-medium">Cliente</th>
+                                    <th className="text-left text-xs text-gray-400 pb-3 font-medium">Vendedor</th>
+                                    <th className="text-center text-xs text-gray-400 pb-3 font-medium">Fecha</th>
+                                    <th className="text-center text-xs text-gray-400 pb-3 font-medium">Vencimiento</th>
+                                    <th className="text-right text-xs text-gray-400 pb-3 font-medium">Total</th>
+                                    <th className="text-center text-xs text-gray-400 pb-3 font-medium">Estado</th>
+                                    <th className="text-center text-xs text-gray-400 pb-3 font-medium">Acc.</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filtered.length === 0 ? (
+                                    <tr><td colSpan={8} className="py-8 text-center text-gray-400 text-sm">No se encontraron facturas</td></tr>
+                                ) : filtered.map(f => (
+                                    <tr key={f.id} className={`border-b border-gray-50 hover:bg-gray-50 transition-colors ${f.estado === 'VENCIDA' ? 'bg-red-50/30' : ''}`}>
+                                        <td className="py-3">
+                                            <div className="flex items-center gap-2">
+                                                <FileText className="w-3.5 h-3.5 text-blue-400" />
+                                                <span className="text-xs text-blue-600 font-medium">{f.numeroFactura}</span>
+                                            </div>
+                                        </td>
+                                        <td className="py-3 text-xs text-gray-700 max-w-[140px]"><span className="truncate block">{f.venta?.cliente?.nombre ?? '—'}</span></td>
+                                        <td className="py-3 text-xs text-gray-500">{f.venta?.vendedor?.nombre ?? '—'}</td>
+                                        <td className="py-3 text-xs text-gray-500 text-center">{new Date(f.fechaEmision).toLocaleDateString('es-SV')}</td>
+                                        <td className="py-3 text-xs text-gray-500 text-center">{f.fechaVencimiento ? new Date(f.fechaVencimiento).toLocaleDateString('es-SV') : '—'}</td>
+                                        <td className="py-3 text-xs text-gray-900 font-medium text-right">{fmt(Number(f.total))}</td>
+                                        <td className="py-3 text-center">{estadoBadge(f.estado)}</td>
+                                        <td className="py-3 text-center">
+                                            <button className="p-1 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"><Eye className="w-3.5 h-3.5" /></button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-3">{filtered.length} registros</p>
+                </div>
+            </div>
+        </div>
+    );
+}

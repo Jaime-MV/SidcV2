@@ -8,4 +8,12 @@ export class CreateDevolucionDto {
     @IsString()
     @IsNotEmpty()
     motivo: string;
+
+    @IsInt()
+    @IsPositive()
+    productoId: number;
+
+    @IsInt()
+    @IsPositive()
+    cantidad: number;
 }

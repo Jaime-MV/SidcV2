@@ -34,6 +34,32 @@ export class SalesController {
         return this.salesService.getProductosMasVendidos(limit ? parseInt(limit) : 10);
     }
 
+    // GET /api/sales/facturas — Listado global de facturas
+    @Get('facturas')
+    findAllFacturas(
+        @Query('page') page?: string,
+        @Query('pageSize') pageSize?: string,
+        @Query('estado') estado?: string,
+    ) {
+        return this.salesService.findAllFacturas(
+            page ? parseInt(page) : 1,
+            pageSize ? parseInt(pageSize) : 20,
+            estado,
+        );
+    }
+
+    // GET /api/sales/devoluciones — Listado global de devoluciones
+    @Get('devoluciones')
+    findAllDevoluciones(
+        @Query('page') page?: string,
+        @Query('pageSize') pageSize?: string,
+    ) {
+        return this.salesService.findAllDevoluciones(
+            page ? parseInt(page) : 1,
+            pageSize ? parseInt(pageSize) : 20,
+        );
+    }
+
     // GET /api/sales/:id — Detalle de una venta
     @Get(':id')
     findOne(@Param('id', ParseIntPipe) id: number) {

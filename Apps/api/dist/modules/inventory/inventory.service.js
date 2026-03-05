@@ -129,6 +129,29 @@ let InventoryService = class InventoryService {
             orderBy: { fechaMovimiento: 'desc' },
         });
     }
+    async createBodega(dto) {
+        return this.prisma.bodega.create({ data: dto, include: { productos: true } });
+    }
+    async findAllBodegas() {
+        const bodegas = await this.prisma.bodega.findMany({
+            include: { productos: { select: { id: true } } },
+            orderBy: { id: 'asc' },
+        });
+        return bodegas.map(b => ({ ...b, productos: b.productos.length }));
+    }
+    async findBodegaById(id) {
+        const bodega = await this.prisma.bodega.findUnique({
+            where: { id },
+            include: { productos: { include: { categoria: true, lotes: true } } },
+        });
+        if (!bodega)
+            throw new common_1.NotFoundException(`Bodega con ID ${id} no encontrada`);
+        return bodega;
+    }
+    async updateBodega(id, dto) {
+        await this.findBodegaById(id);
+        return this.prisma.bodega.update({ where: { id }, data: dto });
+    }
 };
 exports.InventoryService = InventoryService;
 exports.InventoryService = InventoryService = __decorate([

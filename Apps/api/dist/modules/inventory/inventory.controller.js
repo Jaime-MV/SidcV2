@@ -18,6 +18,7 @@ const inventory_service_1 = require("./inventory.service");
 const create_categoria_dto_1 = require("./dto/create-categoria.dto");
 const create_producto_dto_1 = require("./dto/create-producto.dto");
 const create_lote_dto_1 = require("./dto/create-lote.dto");
+const create_bodega_dto_1 = require("./dto/create-bodega.dto");
 let InventoryController = class InventoryController {
     inventoryService;
     constructor(inventoryService) {
@@ -58,6 +59,18 @@ let InventoryController = class InventoryController {
     }
     getMovimientos(loteId) {
         return this.inventoryService.getMovimientos(loteId ? parseInt(loteId) : undefined);
+    }
+    createBodega(dto) {
+        return this.inventoryService.createBodega(dto);
+    }
+    findAllBodegas() {
+        return this.inventoryService.findAllBodegas();
+    }
+    findBodegaById(id) {
+        return this.inventoryService.findBodegaById(id);
+    }
+    updateBodega(id, dto) {
+        return this.inventoryService.updateBodega(id, dto);
     }
 };
 exports.InventoryController = InventoryController;
@@ -147,6 +160,35 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], InventoryController.prototype, "getMovimientos", null);
+__decorate([
+    (0, common_1.Post)('bodegas'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.CREATED),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [create_bodega_dto_1.CreateBodegaDto]),
+    __metadata("design:returntype", void 0)
+], InventoryController.prototype, "createBodega", null);
+__decorate([
+    (0, common_1.Get)('bodegas'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], InventoryController.prototype, "findAllBodegas", null);
+__decorate([
+    (0, common_1.Get)('bodegas/:id'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number]),
+    __metadata("design:returntype", void 0)
+], InventoryController.prototype, "findBodegaById", null);
+__decorate([
+    (0, common_1.Patch)('bodegas/:id'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, Object]),
+    __metadata("design:returntype", void 0)
+], InventoryController.prototype, "updateBodega", null);
 exports.InventoryController = InventoryController = __decorate([
     (0, common_1.Controller)('inventory'),
     __metadata("design:paramtypes", [inventory_service_1.InventoryService])

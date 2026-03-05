@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Body, Param, Query, ParseIntPipe, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, ParseIntPipe, HttpCode, HttpStatus } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
 import { CreateCategoriaDto } from './dto/create-categoria.dto';
 import { CreateProductoDto } from './dto/create-producto.dto';
 import { CreateLoteDto } from './dto/create-lote.dto';
+import { CreateBodegaDto } from './dto/create-bodega.dto';
 
 @Controller('inventory')
 export class InventoryController {
@@ -79,5 +80,27 @@ export class InventoryController {
     @Get('reportes/movimientos')
     getMovimientos(@Query('loteId') loteId?: string) {
         return this.inventoryService.getMovimientos(loteId ? parseInt(loteId) : undefined);
+    }
+
+    // ─── BODEGAS (/api/inventory/bodegas) ─────────────────────────────────
+    @Post('bodegas')
+    @HttpCode(HttpStatus.CREATED)
+    createBodega(@Body() dto: CreateBodegaDto) {
+        return this.inventoryService.createBodega(dto);
+    }
+
+    @Get('bodegas')
+    findAllBodegas() {
+        return this.inventoryService.findAllBodegas();
+    }
+
+    @Get('bodegas/:id')
+    findBodegaById(@Param('id', ParseIntPipe) id: number) {
+        return this.inventoryService.findBodegaById(id);
+    }
+
+    @Patch('bodegas/:id')
+    updateBodega(@Param('id', ParseIntPipe) id: number, @Body() dto: Partial<CreateBodegaDto>) {
+        return this.inventoryService.updateBodega(id, dto);
     }
 }

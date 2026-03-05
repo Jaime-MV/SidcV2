@@ -25,16 +25,22 @@ let ClientService = class ClientService {
         }
         return this.prisma.cliente.create({ data: dto, include: { ruta: true } });
     }
-    async findAllClientes(page = 1, pageSize = 20) {
+    async findAllClientes(page = 1, pageSize = 20, estado, tipo) {
         const skip = (page - 1) * pageSize;
+        const where = {};
+        if (estado)
+            where.estado = estado;
+        if (tipo)
+            where.tipo = tipo;
         const [items, total] = await Promise.all([
             this.prisma.cliente.findMany({
                 skip,
                 take: pageSize,
+                where,
                 include: { ruta: true },
                 orderBy: { id: 'desc' },
             }),
-            this.prisma.cliente.count(),
+            this.prisma.cliente.count({ where }),
         ]);
         return { items, total, page, pageSize, pages: Math.ceil(total / pageSize) };
     }
@@ -100,6 +106,21 @@ let ClientService = class ClientService {
             include: { factura: true },
             orderBy: { fecha: 'desc' },
         });
+    }
+    async findAllCobros(page = 1, pageSize = 50, estado) {
+        const skip = (page - 1) * pageSize;
+        const where = estado ? { estado: estado } : {};
+        const [items, total] = await Promise.all([
+            this.prisma.cobro.findMany({
+                skip,
+                take: pageSize,
+                where,
+                include: { cliente: true, factura: { include: { venta: { include: { vendedor: true } } } } },
+                orderBy: { fecha: 'desc' },
+            }),
+            this.prisma.cobro.count({ where }),
+        ]);
+        return { items, total, page, pageSize, pages: Math.ceil(total / pageSize) };
     }
 };
 exports.ClientService = ClientService;

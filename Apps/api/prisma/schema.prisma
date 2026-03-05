@@ -8,29 +8,61 @@ datasource db {
 }
 
 // -------------------------------------------------------------
-// MÓDULO: INVENTARIO Y PRODUCTOS
+// MÓDULO: INVENTARIO, PRODUCTOS Y BODEGAS
 // -------------------------------------------------------------
 
+model Bodega {
+  id             Int     @id @default(autoincrement())
+  codigo         String? @unique // Ej. "BOD-01"
+  nombre         String
+  ubicacion      String?
+  capacidadTotal Int     @default(0)
+  capacidadUsada Int     @default(0)
+  encargado      String?
+
+  productos Producto[]
+}
+
 model Categoria {
-  id          Int        @id @default(autoincrement())
-  nombre      String     @unique
+  id          Int     @id @default(autoincrement())
+  nombre      String  @unique
   descripcion String?
-  productos   Producto[]
+  colorHex    String? @default("#6b7280") // Color para gráficas (Ej. "#3b82f6")
+
+  productos Producto[]
 }
 
 model Producto {
-  id           Int     @id @default(autoincrement())
-  nombre       String
-  descripcion  String?
-  codigoBarras String? @unique
-  precioBase   Decimal @db.Decimal(10, 2)
+  id             Int            @id @default(autoincrement())
+  codigo         String?        @unique // Ej. "P001"
+  nombre         String
+  descripcion    String?
+  codigoBarras   String?        @unique
+  precioCompra   Decimal        @default(0) @db.Decimal(10, 2)
+  precioVenta    Decimal        @default(0) @db.Decimal(10, 2)
+  minStock       Int            @default(0)
+  estadoProducto EstadoProducto @default(NORMAL) // Estado calculado/manual
 
   categoriaId Int
   categoria   Categoria @relation(fields: [categoriaId], references: [id])
 
-  lotes         Lote[]
-  detallesVenta DetalleVenta[]
-  promociones   PromocionProducto[]
+  bodegaId Int?
+  bodega   Bodega? @relation(fields: [bodegaId], references: [id])
+
+  lotes               Lote[]
+  detallesVenta       DetalleVenta[]
+  promociones         PromocionProducto[]
+  devoluciones        Devolucion[]
+  estadisticaProducto EstadisticaProducto?
+}
+
+// Estado calculado del producto según stock y vencimiento
+enum EstadoProducto {
+  NORMAL
+  STOCK_BAJO
+  POR_VENCER
+  CRITICO
+  VENCIDO
 }
 
 model Lote {
@@ -80,9 +112,21 @@ model Vendedor {
 }
 
 model Ruta {
-  id          Int     @id @default(autoincrement())
-  nombre      String
-  descripcion String?
+  id           Int        @id @default(autoincrement())
+  codigo       String?    @unique // Ej. "R-01"
+  nombre       String
+  descripcion  String?
+  vehiculo     String?
+  kmEstimados  Int?
+  horaInicio   String?
+  horaFin      String?
+  departamento String?
+  estado       EstadoRuta @default(PENDIENTE)
+
+  // Estadísticas de entregas del día (operativas)
+  clientesTotal       Int @default(0) // Total clientes asignados a la ruta
+  entregasHoy         Int @default(0) // Entregas programadas para hoy
+  entregasCompletadas Int @default(0) // Entregas realizadas hoy
 
   vendedorId Int
   vendedor   Vendedor @relation(fields: [vendedorId], references: [id])
@@ -90,17 +134,28 @@ model Ruta {
   clientes Cliente[]
 }
 
+enum EstadoRuta {
+  EN_RUTA
+  COMPLETADA
+  PENDIENTE
+  CANCELADA
+}
+
 // -------------------------------------------------------------
 // MÓDULO: CLIENTES Y CRÉDITO
 // -------------------------------------------------------------
 
 model Cliente {
-  id             Int     @id @default(autoincrement())
+  id             Int           @id @default(autoincrement())
+  codigo         String?       @unique // Ej. "C001"
   nombre         String
-  identificacion String  @unique // NIT o Documento Similar
+  identificacion String        @unique // NIT o Documento Similar
   direccion      String
   telefono       String?
   email          String?
+  tipo           TipoCliente   @default(TIENDA)
+  estado         EstadoCliente @default(ACTIVO)
+  ultimaCompra   DateTime? // Fecha de la última compra
 
   // Condición de pago/Crédito
   limiteCredito Decimal @default(0) @db.Decimal(12, 2)
@@ -112,6 +167,19 @@ model Cliente {
 
   ventas Venta[]
   cobros Cobro[]
+}
+
+enum TipoCliente {
+  SUPERMERCADO
+  FARMACIA
+  TIENDA
+  MAYORISTA
+}
+
+enum EstadoCliente {
+  ACTIVO
+  BLOQUEADO
+  SUSPENDIDO
 }
 
 // -------------------------------------------------------------
@@ -157,11 +225,12 @@ model DetalleVenta {
 }
 
 model Factura {
-  id            Int           @id @default(autoincrement())
-  numeroFactura String        @unique
-  fechaEmision  DateTime      @default(now())
-  total         Decimal       @db.Decimal(12, 2)
-  estado        EstadoFactura @default(CREADA)
+  id               Int           @id @default(autoincrement())
+  numeroFactura    String        @unique
+  fechaEmision     DateTime      @default(now())
+  fechaVencimiento DateTime? // Fecha límite de pago
+  total            Decimal       @db.Decimal(12, 2)
+  estado           EstadoFactura @default(CREADA)
 
   ventaId Int   @unique
   venta   Venta @relation(fields: [ventaId], references: [id])
@@ -174,6 +243,7 @@ enum EstadoFactura {
   PAGADA
   PAGADA_PARCIALMENTE
   ANULADA
+  VENCIDA
 }
 
 // -------------------------------------------------------------
@@ -181,11 +251,15 @@ enum EstadoFactura {
 // -------------------------------------------------------------
 
 model Cobro {
-  id             Int        @id @default(autoincrement())
-  fecha          DateTime   @default(now())
-  monto          Decimal    @db.Decimal(12, 2)
-  metodoPago     MetodoPago
+  id             Int         @id @default(autoincrement())
+  codigo         String?     @unique // Ej. "COB-0095"
+  fecha          DateTime    @default(now())
+  fechaPago      DateTime? // Fecha efectiva de pago (si ya se cobró)
+  monto          Decimal     @db.Decimal(12, 2)
+  metodoPago     MetodoPago?
   referenciaPago String?
+  estado         EstadoCobro @default(PENDIENTE)
+  diasVencido    Int         @default(0) // Días transcurridos desde vencimiento
 
   facturaId Int
   factura   Factura @relation(fields: [facturaId], references: [id])
@@ -201,24 +275,37 @@ enum MetodoPago {
   CHEQUE
 }
 
+enum EstadoCobro {
+  COBRADO
+  PENDIENTE
+  VENCIDO
+}
+
 // -------------------------------------------------------------
 // MÓDULO: DEVOLUCIONES
 // -------------------------------------------------------------
 
 model Devolucion {
-  id     Int              @id @default(autoincrement())
-  fecha  DateTime         @default(now())
-  motivo String
-  estado EstadoDevolucion @default(PROCESADA)
+  id       Int              @id @default(autoincrement())
+  codigo   String?          @unique // Ej. "DEV-0021"
+  fecha    DateTime         @default(now())
+  motivo   String
+  estado   EstadoDevolucion @default(PROCESADA)
+  cantidad Int              @default(1)
+  monto    Decimal          @default(0) @db.Decimal(10, 2)
 
   ventaId Int
   venta   Venta @relation(fields: [ventaId], references: [id])
+
+  productoId Int
+  producto   Producto @relation(fields: [productoId], references: [id])
 }
 
 enum EstadoDevolucion {
   PENDIENTE
   PROCESADA
   RECHAZADA
+  APROBADA
 }
 
 // -------------------------------------------------------------
@@ -226,15 +313,36 @@ enum EstadoDevolucion {
 // -------------------------------------------------------------
 
 model Promocion {
-  id             Int      @id @default(autoincrement())
+  id             Int             @id @default(autoincrement())
+  codigo         String?         @unique // Ej. "PROMO-01"
   nombre         String
+  tipo           TipoPromocion   @default(DESCUENTO)
   descripcion    String?
   fechaInicio    DateTime
   fechaFin       DateTime
-  porcentajeDesc Decimal  @db.Decimal(5, 2)
-  activa         Boolean  @default(true)
+  porcentajeDesc Decimal         @db.Decimal(5, 2)
+  canal          String? // Ej. "Supermercados", "Todos"
+  usos           Int             @default(0)
+  presupuesto    Decimal         @default(0) @db.Decimal(12, 2)
+  gastado        Decimal         @default(0) @db.Decimal(12, 2)
+  estado         EstadoPromocion @default(ACTIVA)
+
+  activa Boolean @default(true) // Legacy status flag
 
   productos PromocionProducto[]
+}
+
+enum TipoPromocion {
+  VOLUMEN
+  DESCUENTO
+  COMBO
+  ESPECIAL
+}
+
+enum EstadoPromocion {
+  ACTIVA
+  PROXIMA
+  EXPIRADA
 }
 
 model PromocionProducto {
@@ -248,3 +356,33 @@ model PromocionProducto {
 
   @@unique([promocionId, productoId])
 }
+
+// -------------------------------------------------------------
+// MÓDULO: ANALYTICS / RESÚMENES (para Dashboard)
+// -------------------------------------------------------------
+
+// Resumen mensual de ventas/cobros/devoluciones (precalculado)
+model ResumenMensual {
+  id           Int     @id @default(autoincrement())
+  anio         Int // Ej. 2026
+  mes          Int // 1-12
+  mesLabel     String // Ej. "Mar '26"
+  ventas       Decimal @default(0) @db.Decimal(14, 2)
+  cobros       Decimal @default(0) @db.Decimal(14, 2)
+  devoluciones Decimal @default(0) @db.Decimal(14, 2)
+
+  @@unique([anio, mes])
+}
+
+// Caché de estadísticas del producto (actualizado por job o trigger)
+model EstadisticaProducto {
+  id           Int     @id @default(autoincrement())
+  totalVendido Int     @default(0) // Unidades vendidas históricas
+  ingresos     Decimal @default(0) @db.Decimal(14, 2)
+
+  productoId Int      @unique
+  producto   Producto @relation(fields: [productoId], references: [id])
+}
+
+// Relación inversa en Producto
+// (se agrega el campo en el modelo Producto arriba)
