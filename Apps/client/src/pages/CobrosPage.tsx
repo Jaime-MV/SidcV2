@@ -1,24 +1,127 @@
 import { useState, useEffect } from 'react';
-import { DollarSign, AlertTriangle, CheckCircle2, Clock, Search, Filter, RefreshCw } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock, Search, Filter, RefreshCw, Plus, X, Save } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Header } from '../components/layout/Header';
 import { Badge } from '../components/ui/Badge';
-import { clientesApi, type Cobro, estadoCobroLabel } from '../services/api';
+import { clientesApi, ventasApi, type Cobro, type Factura, estadoCobroLabel } from '../services/api';
 
 const fmt = (n: number) => new Intl.NumberFormat('es-SV', { style: 'currency', currency: 'USD' }).format(n);
 
+// ─── Modal Registrar Pago ─────────────────────────────────────────────────────
+function RegistrarPagoModal({ open, onClose, onSaved, facturas }: {
+    open: boolean; onClose: () => void; onSaved: () => void; facturas: Factura[];
+}) {
+    const [facturaId, setFacturaId] = useState('');
+    const [monto, setMonto] = useState('');
+    const [metodoPago, setMetodoPago] = useState('EFECTIVO');
+    const [referencia, setReferencia] = useState('');
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!open) { setFacturaId(''); setMonto(''); setMetodoPago('EFECTIVO'); setReferencia(''); setError(null); }
+    }, [open]);
+
+    // Auto-fill monto al seleccionar factura
+    useEffect(() => {
+        if (facturaId) {
+            const f = facturas.find(f => f.id === parseInt(facturaId));
+            if (f) setMonto(String(Number(f.total)));
+        }
+    }, [facturaId, facturas]);
+
+    const handleSave = async () => {
+        if (!facturaId) { setError('Selecciona una factura'); return; }
+        if (!monto || parseFloat(monto) <= 0) { setError('Ingresa un monto válido'); return; }
+        setSaving(true); setError(null);
+        try {
+            await clientesApi.createCobro({
+                facturaId: parseInt(facturaId),
+                monto: parseFloat(monto),
+                metodoPago: metodoPago || undefined,
+                referenciaPago: referencia.trim() || undefined,
+            });
+            onSaved();
+            onClose();
+        } catch (e: unknown) {
+            setError(e instanceof Error ? e.message : 'Error al registrar el pago');
+        } finally { setSaving(false); }
+    };
+
+    const facturasPendientes = facturas.filter(f => ['CREADA', 'PAGADA_PARCIALMENTE', 'VENCIDA'].includes(f.estado));
+
+    if (!open) return null;
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+                <div className="flex items-center justify-between p-6 border-b border-gray-100">
+                    <h2 className="text-base font-semibold text-gray-900">Registrar Pago</h2>
+                    <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"><X className="w-4 h-4 text-gray-500" /></button>
+                </div>
+                <div className="p-6 space-y-4">
+                    {error && <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700">{error}</div>}
+                    <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Factura *</label>
+                        <select value={facturaId} onChange={e => setFacturaId(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400">
+                            <option value="">Seleccionar factura pendiente...</option>
+                            {facturasPendientes.map(f => (
+                                <option key={f.id} value={f.id}>
+                                    {f.numeroFactura} — {f.venta?.cliente?.nombre ?? '?'} — {fmt(Number(f.total))}
+                                </option>
+                            ))}
+                        </select>
+                        {facturasPendientes.length === 0 && (
+                            <p className="text-xs text-gray-400 mt-1">No hay facturas pendientes de cobro</p>
+                        )}
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Monto ($) *</label>
+                        <input type="number" min="0.01" step="0.01" value={monto} onChange={e => setMonto(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400" placeholder="0.00" />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Método de Pago</label>
+                        <select value={metodoPago} onChange={e => setMetodoPago(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400">
+                            <option value="EFECTIVO">Efectivo</option>
+                            <option value="TRANSFERENCIA">Transferencia</option>
+                            <option value="CHEQUE">Cheque</option>
+                            <option value="TARJETA">Tarjeta</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Referencia / Comprobante</label>
+                        <input value={referencia} onChange={e => setReferencia(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400" placeholder="Número de cheque, referencia de transferencia..." />
+                    </div>
+                </div>
+                <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100">
+                    <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+                    <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60 transition-colors">
+                        <Save className="w-3.5 h-3.5" />{saving ? 'Guardando...' : 'Registrar Pago'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 export default function CobrosPage() {
     const [cobros, setCobros] = useState<Cobro[]>([]);
+    const [facturas, setFacturas] = useState<Factura[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
     const [filterEstado, setFilterEstado] = useState('Todos');
+    const [modalOpen, setModalOpen] = useState(false);
 
     const loadData = async () => {
         setLoading(true); setError(null);
         try {
-            const data = await clientesApi.getCobros(1, 200);
-            setCobros(data.items);
+            const [cobrosData, facturasData] = await Promise.all([
+                clientesApi.getCobros(1, 200),
+                ventasApi.getFacturas(1, 200),
+            ]);
+            setCobros(cobrosData.items);
+            setFacturas(facturasData.items);
         } catch (e: unknown) {
             setError(e instanceof Error ? e.message : 'Error al cargar cobros');
         } finally { setLoading(false); }
@@ -66,6 +169,7 @@ export default function CobrosPage() {
 
     return (
         <div className="flex flex-col h-full">
+            <RegistrarPagoModal open={modalOpen} onClose={() => setModalOpen(false)} onSaved={loadData} facturas={facturas} />
             <Header title="Cobros" subtitle="Seguimiento de cuentas por cobrar y gestión de pagos" onRefresh={loadData} />
             <div className="flex-1 p-6 space-y-5 overflow-y-auto">
                 {/* Summary */}
@@ -74,12 +178,12 @@ export default function CobrosPage() {
                         <div><p className="text-xs text-gray-500">Total Pendiente</p><p className="text-2xl font-semibold text-amber-600 mt-1">{fmt(totalPendiente)}</p><p className="text-xs text-gray-400 mt-0.5">{cobros.filter(c => c.estado === 'PENDIENTE').length} cuentas</p></div>
                         <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center"><Clock className="w-5 h-5 text-amber-600" /></div>
                     </div>
-                    <div className="bg-red-50 rounded-xl p-5 shadow-sm border border-red-200 flex items-start justify-between">
+                    <div className={`rounded-xl p-5 shadow-sm border flex items-start justify-between ${totalVencido > 0 ? 'bg-red-50 border-red-200' : 'bg-white border-gray-100'}`}>
                         <div><p className="text-xs text-gray-500">Cobros Vencidos</p><p className="text-2xl font-semibold text-red-600 mt-1">{fmt(totalVencido)}</p><p className="text-xs text-gray-400 mt-0.5">{cobros.filter(c => c.estado === 'VENCIDO').length} facturas</p></div>
                         <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center"><AlertTriangle className="w-5 h-5 text-red-600" /></div>
                     </div>
                     <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 flex items-start justify-between">
-                        <div><p className="text-xs text-gray-500">Cobrado (Mes)</p><p className="text-2xl font-semibold text-emerald-600 mt-1">{fmt(totalCobrado)}</p><p className="text-xs text-gray-400 mt-0.5">{cobros.filter(c => c.estado === 'COBRADO').length} pagos</p></div>
+                        <div><p className="text-xs text-gray-500">Cobrado</p><p className="text-2xl font-semibold text-emerald-600 mt-1">{fmt(totalCobrado)}</p><p className="text-xs text-gray-400 mt-0.5">{cobros.filter(c => c.estado === 'COBRADO').length} pagos</p></div>
                         <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center"><CheckCircle2 className="w-5 h-5 text-emerald-600" /></div>
                     </div>
                 </div>
@@ -91,7 +195,7 @@ export default function CobrosPage() {
                         {resumenData.length > 0 ? (
                             <>
                                 <ResponsiveContainer width="100%" height={160}>
-                                    <PieChart><Pie data={resumenData} cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={3} dataKey="value">{resumenData.map((e, i) => <Cell key={i} fill={e.color} />)}</Pie><Tooltip formatter={(v: number) => [fmt(v), '']} contentStyle={{ fontSize: '12px', borderRadius: '8px' }} /></PieChart>
+                                    <PieChart><Pie data={resumenData} cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={3} dataKey="value">{resumenData.map((e, i) => <Cell key={i} fill={e.color} />)}</Pie><Tooltip formatter={(v: number | undefined) => [fmt(v ?? 0), '']} contentStyle={{ fontSize: '12px', borderRadius: '8px' }} /></PieChart>
                                 </ResponsiveContainer>
                                 <div className="space-y-2 mt-2">{resumenData.map(d => (<div key={d.name} className="flex items-center justify-between text-xs"><div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }}></div><span className="text-gray-600">{d.name}</span></div><span className="text-gray-800 font-medium">{fmt(d.value)}</span></div>))}</div>
                             </>
@@ -105,7 +209,7 @@ export default function CobrosPage() {
                                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                                     <XAxis dataKey="vendedor" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
                                     <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
-                                    <Tooltip formatter={(v: number) => [fmt(v), '']} contentStyle={{ fontSize: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }} />
+                                    <Tooltip formatter={(v: number | undefined) => [fmt(v ?? 0), '']} contentStyle={{ fontSize: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }} />
                                     <Bar dataKey="pendiente" name="Pendiente" fill="#f59e0b" radius={[4, 4, 0, 0]} />
                                     <Bar dataKey="cobrado" name="Cobrado" fill="#10b981" radius={[4, 4, 0, 0]} />
                                 </BarChart>
@@ -121,7 +225,9 @@ export default function CobrosPage() {
                         <div className="flex items-center gap-2 flex-wrap">
                             <div className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-2 w-48"><Search className="w-3.5 h-3.5 text-gray-400" /><input type="text" placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} className="bg-transparent text-xs outline-none w-full" /></div>
                             <div className="flex items-center gap-1.5"><Filter className="w-3.5 h-3.5 text-gray-400" /><select value={filterEstado} onChange={e => setFilterEstado(e.target.value)} className="bg-gray-100 rounded-lg px-2 py-2 text-xs text-gray-600 outline-none"><option value="Todos">Todos</option><option>Cobrado</option><option>Pendiente</option><option>Vencido</option></select></div>
-                            <button className="flex items-center gap-1.5 bg-blue-600 text-white text-xs px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors"><DollarSign className="w-3.5 h-3.5" />Registrar Pago</button>
+                            <button onClick={() => setModalOpen(true)} className="flex items-center gap-1.5 bg-blue-600 text-white text-xs px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                                <Plus className="w-3.5 h-3.5" />Registrar Pago
+                            </button>
                         </div>
                     </div>
                     <div className="overflow-x-auto">

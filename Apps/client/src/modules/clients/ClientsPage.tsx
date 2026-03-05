@@ -16,7 +16,7 @@ export default function ClientsPage() {
         setError('');
         try {
             const res = await clientsService.getAll();
-            setClientes(Array.isArray(res) ? res : Array.isArray(res.data) ? res.data : []);
+            setClientes(Array.isArray(res) ? res : 'items' in res ? res.items : []);
         } catch (e: unknown) {
             setError(e instanceof Error ? e.message : 'Error al cargar clientes');
         } finally {
@@ -35,8 +35,10 @@ export default function ClientsPage() {
                 direccion: form.direccion,
                 telefono: form.telefono || undefined,
                 email: form.email || undefined,
-                limiteCredito: form.limiteCredito ? parseFloat(form.limiteCredito) : undefined,
-                diasCredito: form.diasCredito ? parseInt(form.diasCredito) : undefined,
+                limiteCredito: form.limiteCredito ? parseFloat(form.limiteCredito) : 0,
+                diasCredito: form.diasCredito ? parseInt(form.diasCredito) : 0,
+                tipo: 'TIENDA',
+                estado: 'ACTIVO',
             });
             setForm({ nombre: '', identificacion: '', direccion: '', telefono: '', email: '', limiteCredito: '', diasCredito: '' });
             setShowForm(false);

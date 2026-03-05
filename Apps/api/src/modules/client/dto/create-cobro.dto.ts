@@ -12,9 +12,9 @@ export class CreateCobroDto {
     @IsPositive()
     monto: number;
 
+    @IsOptional()
     @IsEnum(MetodoPagoEnum)
-    @IsNotEmpty()
-    metodoPago: MetodoPagoEnum;
+    metodoPago?: MetodoPagoEnum;
 
     @IsOptional()
     @IsString()
@@ -23,8 +23,4 @@ export class CreateCobroDto {
     @IsInt()
     @IsPositive()
     facturaId: number;
-
-    @IsInt()
-    @IsPositive()
-    clienteId: number;
 }

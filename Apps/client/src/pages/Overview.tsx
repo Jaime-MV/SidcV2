@@ -7,7 +7,7 @@ import {
 import { Header } from '../components/layout/Header';
 import { Badge } from '../components/ui/Badge';
 import { StatCard } from '../components/ui/StatCard';
-import { dashboardApi, ventasApi, rutasApi, inventarioApi, type DashboardStats, type ResumenMensual, type VentasPorCategoria, type Ruta, type Lote, type Factura, estadoRutaLabel, estadoFacturaLabel } from '../services/api';
+import { dashboardApi, ventasApi, rutasApi, inventarioApi, type DashboardStats, type ResumenMensual, type VentasPorCategoria, type Ruta, type Lote, type Factura, estadoFacturaLabel } from '../services/api';
 
 const fmt = (n: number) => new Intl.NumberFormat('es-SV', { style: 'currency', currency: 'USD' }).format(n);
 const COLORS = ['#3b82f6', '#06b6d4', '#8b5cf6', '#f59e0b', '#6b7280'];
@@ -74,12 +74,7 @@ export default function Overview() {
         return <Badge label={label} variant="neutral" />;
     };
 
-    const entregasPorRuta = rutas.map(r => ({
-        ruta: r.nombre.length > 12 ? r.nombre.substring(0, 12) + '…' : r.nombre,
-        completadas: r.entregasCompletadas ?? 0,
-        pendientes: (r.entregasHoy ?? 0) - (r.entregasCompletadas ?? 0),
-        estado: r.estado,
-    }));
+
 
     if (loading) return (
         <div className="flex flex-col h-full">
@@ -196,7 +191,7 @@ export default function Overview() {
                                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                                     <XAxis dataKey="mesLabel" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
                                     <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
-                                    <Tooltip formatter={(v: number) => [fmt(v), '']} contentStyle={{ fontSize: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }} />
+                                    <Tooltip formatter={(v: number | undefined) => [fmt(v ?? 0), '']} contentStyle={{ fontSize: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }} />
                                     <Area type="monotone" dataKey="ventas" stroke="#3b82f6" strokeWidth={2} fill="url(#colorVentas)" name="Ventas" />
                                     <Area type="monotone" dataKey="cobros" stroke="#10b981" strokeWidth={2} fill="url(#colorCobros)" name="Cobros" />
                                 </AreaChart>
@@ -251,7 +246,7 @@ export default function Overview() {
                                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
                                     <XAxis type="number" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
                                     <YAxis dataKey="nombre" type="category" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} width={140} />
-                                    <Tooltip contentStyle={{ fontSize: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }} formatter={(v: number) => [v.toLocaleString(), 'Unidades']} />
+                                    <Tooltip contentStyle={{ fontSize: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }} formatter={(v: number | undefined) => [(v ?? 0).toLocaleString(), 'Unidades']} />
                                     <Bar dataKey="unidades" fill="#3b82f6" radius={[0, 4, 4, 0]} name="Unidades" />
                                 </BarChart>
                             </ResponsiveContainer>

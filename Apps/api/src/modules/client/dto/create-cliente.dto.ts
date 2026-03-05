@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsEmail, IsNumber, IsInt, Min } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsEmail, IsNumber, IsInt, Min, IsIn } from 'class-validator';
 
 export class CreateClienteDto {
     @IsString()
@@ -20,6 +20,14 @@ export class CreateClienteDto {
     @IsOptional()
     @IsEmail()
     email?: string;
+
+    @IsOptional()
+    @IsIn(['TIENDA', 'SUPERMERCADO', 'FARMACIA', 'MAYORISTA'])
+    tipo?: string;
+
+    @IsOptional()
+    @IsIn(['ACTIVO', 'BLOQUEADO', 'SUSPENDIDO'])
+    estado?: string;
 
     @IsOptional()
     @IsNumber({ maxDecimalPlaces: 2 })

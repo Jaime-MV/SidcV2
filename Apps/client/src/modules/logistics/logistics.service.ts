@@ -1,32 +1,17 @@
-import { api } from '../../services/api';
+import { rutasApi, type Vendedor, type Ruta } from '../../services/api';
 
-export interface Vendedor {
-    id: number;
-    nombre: string;
-    telefono?: string;
-    activo: boolean;
-}
-
-export interface Ruta {
-    id: number;
-    nombre: string;
-    descripcion?: string;
-    vendedorId: number;
-    vendedor?: Vendedor;
-}
+export type { Vendedor, Ruta };
 
 export const logisticsService = {
     // Vendedores
-    getVendedores: () => api.get<Vendedor[]>('/logistics/vendedores'),
-    getVendedorById: (id: number) => api.get<Vendedor>(`/logistics/vendedores/${id}`),
-    createVendedor: (data: { nombre: string; telefono?: string }) =>
-        api.post<Vendedor>('/logistics/vendedores', data),
+    getVendedores: () => rutasApi.getVendedores(),
+    createVendedor: (data: Parameters<typeof rutasApi.createVendedor>[0]) =>
+        rutasApi.createVendedor(data),
     updateVendedor: (id: number, data: Partial<Vendedor>) =>
-        api.patch<Vendedor>(`/logistics/vendedores/${id}`, data),
+        rutasApi.updateVendedor(id, data),
 
     // Rutas
-    getRutas: () => api.get<Ruta[]>('/logistics/rutas'),
-    getRutaById: (id: number) => api.get<Ruta>(`/logistics/rutas/${id}`),
-    createRuta: (data: { nombre: string; descripcion?: string; vendedorId: number }) =>
-        api.post<Ruta>('/logistics/rutas', data),
+    getRutas: () => rutasApi.getRutas(),
+    createRuta: (data: Parameters<typeof rutasApi.createRuta>[0]) =>
+        rutasApi.createRuta(data),
 };

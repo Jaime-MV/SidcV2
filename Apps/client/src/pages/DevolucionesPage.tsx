@@ -1,21 +1,118 @@
 import { useEffect, useState } from 'react';
-import { RotateCcw, RefreshCw, AlertTriangle, Plus, CheckCircle2, Clock, XCircle, FileText } from 'lucide-react';
+import { RotateCcw, RefreshCw, AlertTriangle, Plus, CheckCircle2, Clock, XCircle, FileText, X, Save } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Badge } from '../components/ui/Badge';
-import { ventasApi, type Devolucion, estadoDevolucionLabel } from '../services/api';
+import { ventasApi, type Devolucion, type Venta, type Producto, estadoDevolucionLabel } from '../services/api';
 
 const fmt = (n: number) => new Intl.NumberFormat('es-SV', { style: 'currency', currency: 'USD' }).format(n);
 
+// ─── Modal Nueva Devolución ───────────────────────────────────────────────────
+function NuevaDevolucionModal({ open, onClose, onSaved, ventas, productos }: {
+    open: boolean; onClose: () => void; onSaved: () => void;
+    ventas: Venta[]; productos: Producto[];
+}) {
+    const [ventaId, setVentaId] = useState('');
+    const [productoId, setProductoId] = useState('');
+    const [cantidad, setCantidad] = useState('1');
+    const [motivo, setMotivo] = useState('');
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!open) { setVentaId(''); setProductoId(''); setCantidad('1'); setMotivo(''); setError(null); }
+    }, [open]);
+
+    const handleSave = async () => {
+        if (!ventaId) { setError('Selecciona una venta'); return; }
+        if (!productoId) { setError('Selecciona el producto a devolver'); return; }
+        if (!motivo.trim()) { setError('Describe el motivo de la devolución'); return; }
+        if (parseInt(cantidad) < 1) { setError('La cantidad debe ser mayor a 0'); return; }
+        setSaving(true); setError(null);
+        try {
+            await ventasApi.createDevolucion({
+                ventaId: parseInt(ventaId),
+                productoId: parseInt(productoId),
+                cantidad: parseInt(cantidad),
+                motivo: motivo.trim(),
+            });
+            onSaved();
+            onClose();
+        } catch (e: unknown) {
+            setError(e instanceof Error ? e.message : 'Error al registrar la devolución');
+        } finally { setSaving(false); }
+    };
+
+    if (!open) return null;
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+                <div className="flex items-center justify-between p-6 border-b border-gray-100">
+                    <h2 className="text-base font-semibold text-gray-900">Nueva Devolución</h2>
+                    <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"><X className="w-4 h-4 text-gray-500" /></button>
+                </div>
+                <div className="p-6 space-y-4">
+                    {error && <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700">{error}</div>}
+                    <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Venta Origen *</label>
+                        <select value={ventaId} onChange={e => setVentaId(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400">
+                            <option value="">Seleccionar venta...</option>
+                            {ventas.map(v => (
+                                <option key={v.id} value={v.id}>
+                                    {v.factura?.numeroFactura ?? `VTA-${v.id}`} — {v.cliente?.nombre ?? '?'} — {new Date(v.fecha).toLocaleDateString('es-SV')}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Producto a Devolver *</label>
+                        <select value={productoId} onChange={e => setProductoId(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400">
+                            <option value="">Seleccionar producto...</option>
+                            {productos.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Cantidad *</label>
+                        <input type="number" min="1" value={cantidad} onChange={e => setCantidad(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400" />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Motivo *</label>
+                        <textarea value={motivo} onChange={e => setMotivo(e.target.value)} rows={3} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400 resize-none" placeholder="Describe el motivo de la devolución (producto defectuoso, vencido, entrega incorrecta...)" />
+                    </div>
+                    <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
+                        <p className="text-xs text-blue-700">La devolución quedará en estado <strong>Pendiente</strong> hasta que sea revisada y aprobada.</p>
+                    </div>
+                </div>
+                <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100">
+                    <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+                    <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60 transition-colors">
+                        <Save className="w-3.5 h-3.5" />{saving ? 'Registrando...' : 'Registrar Devolución'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 export default function DevolucionesPage() {
     const [devoluciones, setDevoluciones] = useState<Devolucion[]>([]);
+    const [ventas, setVentas] = useState<Venta[]>([]);
+    const [productos, setProductos] = useState<Producto[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [modalOpen, setModalOpen] = useState(false);
 
     const loadData = async () => {
         setLoading(true); setError(null);
         try {
-            const data = await ventasApi.getDevoluciones(1, 200);
-            setDevoluciones(data.items);
+            const [devData, ventasData, prodData] = await Promise.all([
+                ventasApi.getDevoluciones(1, 200),
+                ventasApi.getVentas(1, 200),
+                import('../services/api').then(m => m.inventarioApi.getProductos(1, 200)),
+            ]);
+            setDevoluciones(devData.items);
+            setVentas(ventasData.items);
+            setProductos(prodData.items);
         } catch (e: unknown) {
             setError(e instanceof Error ? e.message : 'Error al cargar devoluciones');
         } finally { setLoading(false); }
@@ -40,10 +137,11 @@ export default function DevolucionesPage() {
 
     return (
         <div className="flex flex-col h-full">
+            <NuevaDevolucionModal open={modalOpen} onClose={() => setModalOpen(false)} onSaved={loadData} ventas={ventas} productos={productos} />
             <Header title="Devoluciones" subtitle="Registro y gestión de devoluciones de ventas previas" onRefresh={loadData} />
             <div className="flex-1 p-6 space-y-5 overflow-y-auto">
 
-                {/* Stats — 4 cards igual que en la imagen */}
+                {/* Stats */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
                         <p className="text-xs text-gray-500">Total Devoluciones</p>
@@ -87,7 +185,7 @@ export default function DevolucionesPage() {
                             <RotateCcw className="w-4 h-4 text-blue-500" />
                             <h3 className="font-medium text-gray-900">Registro de Devoluciones</h3>
                         </div>
-                        <button className="flex items-center gap-1.5 bg-blue-600 text-white text-xs px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                        <button onClick={() => setModalOpen(true)} className="flex items-center gap-1.5 bg-blue-600 text-white text-xs px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors">
                             <Plus className="w-3.5 h-3.5" />Nueva Devolución
                         </button>
                     </div>
@@ -104,7 +202,7 @@ export default function DevolucionesPage() {
                                 {devoluciones.length === 0 ? (
                                     <tr><td colSpan={9} className="py-8 text-center text-gray-400 text-sm">No hay devoluciones registradas</td></tr>
                                 ) : devoluciones.map(d => (
-                                    <tr key={d.id} className={`border-b border-gray-50 hover:bg-gray-50 transition-colors`}>
+                                    <tr key={d.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                                         <td className="py-3 pr-4 text-xs font-mono text-gray-500">{d.codigo ?? `DEV-${d.id}`}</td>
                                         <td className="py-3 pr-4 text-xs text-blue-600 font-medium">{d.venta?.factura?.numeroFactura ?? '—'}</td>
                                         <td className="py-3 pr-4 text-xs text-gray-800 max-w-[120px]"><span className="truncate block">{d.venta?.cliente?.nombre ?? '—'}</span></td>

@@ -13,7 +13,7 @@ export class ClientService {
             const ruta = await this.prisma.ruta.findUnique({ where: { id: dto.rutaId } });
             if (!ruta) throw new NotFoundException(`Ruta con ID ${dto.rutaId} no existe`);
         }
-        return this.prisma.cliente.create({ data: dto, include: { ruta: true } });
+        return this.prisma.cliente.create({ data: dto as any, include: { ruta: true } });
     }
 
     async findAllClientes(page = 1, pageSize = 20, estado?: string, tipo?: string) {
@@ -46,7 +46,7 @@ export class ClientService {
 
     async updateCliente(id: number, dto: Partial<CreateClienteDto>) {
         await this.findClienteById(id);
-        return this.prisma.cliente.update({ where: { id }, data: dto, include: { ruta: true } });
+        return this.prisma.cliente.update({ where: { id }, data: dto as any, include: { ruta: true } });
     }
 
     // ─── COBROS ────────────────────────────────────────────────────
@@ -55,15 +55,16 @@ export class ClientService {
             // Validar factura
             const factura = await tx.factura.findUnique({
                 where: { id: dto.facturaId },
-                include: { cobros: true },
+                include: { cobros: true, venta: true },
             });
             if (!factura) throw new NotFoundException(`Factura con ID ${dto.facturaId} no encontrada`);
             if (factura.estado === 'ANULADA') throw new BadRequestException('No se puede cobrar una factura anulada');
             if (factura.estado === 'PAGADA') throw new BadRequestException('La factura ya está completamente pagada');
 
             // Validar cliente
-            const cliente = await tx.cliente.findUnique({ where: { id: dto.clienteId } });
-            if (!cliente) throw new NotFoundException(`Cliente con ID ${dto.clienteId} no encontrado`);
+            const clienteId = factura.venta.clienteId;
+            const cliente = await tx.cliente.findUnique({ where: { id: clienteId } });
+            if (!cliente) throw new NotFoundException(`Cliente con ID ${clienteId} no encontrado`);
 
             // Calcular saldo pendiente de la factura
             const totalCobrado = factura.cobros.reduce((acc, c) => acc + Number(c.monto), 0);
@@ -77,10 +78,10 @@ export class ClientService {
             const cobro = await tx.cobro.create({
                 data: {
                     monto: dto.monto,
-                    metodoPago: dto.metodoPago,
+                    metodoPago: dto.metodoPago || 'EFECTIVO',
                     referenciaPago: dto.referenciaPago,
                     facturaId: dto.facturaId,
-                    clienteId: dto.clienteId,
+                    clienteId: clienteId,
                 },
                 include: { factura: true, cliente: true },
             });

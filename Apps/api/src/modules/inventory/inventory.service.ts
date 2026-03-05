@@ -28,7 +28,22 @@ export class InventoryService {
     async createProducto(dto: CreateProductoDto) {
         const categoria = await this.prisma.categoria.findUnique({ where: { id: dto.categoriaId } });
         if (!categoria) throw new NotFoundException(`Categoría con ID ${dto.categoriaId} no existe`);
-        return this.prisma.producto.create({ data: dto, include: { categoria: true } });
+
+        // Map precioBase (from frontend) to the actual DB columns
+        const precioVenta = dto.precioVenta ?? dto.precioBase ?? 0;
+        const precioCompra = dto.precioCompra ?? dto.precioBase ?? 0;
+
+        return this.prisma.producto.create({
+            data: {
+                nombre: dto.nombre,
+                descripcion: dto.descripcion,
+                codigoBarras: dto.codigoBarras,
+                precioCompra,
+                precioVenta,
+                categoriaId: dto.categoriaId,
+            },
+            include: { categoria: true },
+        });
     }
 
     async findAllProductos(page = 1, pageSize = 20) {

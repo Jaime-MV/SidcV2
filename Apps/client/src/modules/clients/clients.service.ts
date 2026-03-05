@@ -1,30 +1,16 @@
-import { api } from '../../services/api';
+import { clientesApi, type Cliente, type Cobro, type CreateClienteDto } from '../../services/api';
 
-export interface Cliente {
-    id: number;
-    nombre: string;
-    identificacion: string;
-    direccion: string;
-    telefono?: string;
-    email?: string;
-    limiteCredito?: number;
-    diasCredito?: number;
-    rutaId?: number;
-}
-
-export interface Cobro {
-    id: number;
-    clienteId: number;
-    monto: number;
-    fecha: string;
-}
+export type { Cliente, Cobro };
 
 export const clientsService = {
     getAll: (page = 1, pageSize = 20) =>
-        api.get<{ data: Cliente[]; total: number }>(`/clients?page=${page}&pageSize=${pageSize}`),
-    getById: (id: number) => api.get<Cliente>(`/clients/${id}`),
-    create: (data: Omit<Cliente, 'id'>) => api.post<Cliente>('/clients', data),
-    update: (id: number, data: Partial<Cliente>) => api.patch<Cliente>(`/clients/${id}`, data),
-    getCobros: (clienteId: number) => api.get<Cobro[]>(`/clients/${clienteId}/cobros`),
-    createCobro: (data: { clienteId: number; monto: number }) => api.post<Cobro>('/clients/cobros', data),
+        clientesApi.getClientes(page, pageSize),
+    create: (data: CreateClienteDto) =>
+        clientesApi.createCliente(data),
+    update: (id: number, data: Partial<Cliente>) =>
+        clientesApi.updateCliente(id, data),
+    getCobros: (page = 1, pageSize = 100) =>
+        clientesApi.getCobros(page, pageSize),
+    createCobro: (data: Parameters<typeof clientesApi.createCobro>[0]) =>
+        clientesApi.createCobro(data),
 };

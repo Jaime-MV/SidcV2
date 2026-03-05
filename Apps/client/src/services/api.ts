@@ -1,7 +1,6 @@
 /**
  * SIDC API Service
  * Centraliza todas las llamadas al backend NestJS.
- * La URL base se resuelve via el proxy de Vite (/api → http://localhost:3000/api)
  */
 
 const BASE = '/api';
@@ -17,7 +16,35 @@ async function get<T>(path: string): Promise<T> {
     return res.json();
 }
 
-// ─── Normalización de enums (DB → Frontend label) ─────────────────────────────
+async function post<T>(path: string, body: unknown): Promise<T> {
+    const res = await fetch(`${BASE}${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        const msg = Array.isArray(error.message) ? error.message.join(', ') : (error.message ?? `Error ${res.status}`);
+        throw new Error(msg);
+    }
+    return res.json();
+}
+
+async function patch<T>(path: string, body: unknown): Promise<T> {
+    const res = await fetch(`${BASE}${path}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        const msg = Array.isArray(error.message) ? error.message.join(', ') : (error.message ?? `Error ${res.status}`);
+        throw new Error(msg);
+    }
+    return res.json();
+}
+
+// ─── Normalización de enums ───────────────────────────────────────────────────
 
 export const estadoFacturaLabel: Record<string, string> = {
     CREADA: 'Pendiente',
@@ -77,6 +104,7 @@ export const dashboardApi = {
 // ─── Inventario ───────────────────────────────────────────────────────────────
 
 export const inventarioApi = {
+    // GET
     getProductos: (page = 1, pageSize = 50) =>
         get<PaginatedResponse<Producto>>(`/inventory/productos?page=${page}&pageSize=${pageSize}`),
     getLotes: (productoId?: number) =>
@@ -85,11 +113,19 @@ export const inventarioApi = {
     getProximosVencer: (dias = 30) => get<Lote[]>(`/inventory/reportes/proximos-vencer?dias=${dias}`),
     getInventarioPorLote: () => get<Lote[]>('/inventory/reportes/inventario-lote'),
     getBodegas: () => get<Bodega[]>('/inventory/bodegas'),
+    // CREATE
+    createCategoria: (dto: CreateCategoriaDto) => post<Categoria>('/inventory/categorias', dto),
+    createProducto: (dto: CreateProductoDto) => post<Producto>('/inventory/productos', dto),
+    createLote: (dto: CreateLoteDto) => post<Lote>('/inventory/lotes', dto),
+    createBodega: (dto: CreateBodegaDto) => post<Bodega>('/inventory/bodegas', dto),
+    // UPDATE
+    updateBodega: (id: number, dto: Partial<CreateBodegaDto>) => patch<Bodega>(`/inventory/bodegas/${id}`, dto),
 };
 
 // ─── Ventas ───────────────────────────────────────────────────────────────────
 
 export const ventasApi = {
+    // GET
     getVentas: (page = 1, pageSize = 50, estado?: string) =>
         get<PaginatedResponse<Venta>>(`/sales?page=${page}&pageSize=${pageSize}${estado ? `&estado=${estado}` : ''}`),
     getFacturas: (page = 1, pageSize = 50, estado?: string) =>
@@ -97,11 +133,15 @@ export const ventasApi = {
     getDevoluciones: (page = 1, pageSize = 50) =>
         get<PaginatedResponse<Devolucion>>(`/sales/devoluciones?page=${page}&pageSize=${pageSize}`),
     getMasVendidos: (limit = 10) => get<ProductoMasVendido[]>(`/sales/reportes/mas-vendidos?limit=${limit}`),
+    // CREATE
+    createVenta: (dto: CreateVentaDto) => post<Venta>('/sales', dto),
+    createDevolucion: (dto: CreateDevolucionDto) => post<Devolucion>('/sales/devoluciones', dto),
 };
 
 // ─── Clientes ─────────────────────────────────────────────────────────────────
 
 export const clientesApi = {
+    // GET
     getClientes: (page = 1, pageSize = 100, estado?: string, tipo?: string) =>
         get<PaginatedResponse<Cliente>>(
             `/clients?page=${page}&pageSize=${pageSize}${estado ? `&estado=${estado}` : ''}${tipo ? `&tipo=${tipo}` : ''}`
@@ -110,20 +150,37 @@ export const clientesApi = {
         get<PaginatedResponse<Cobro>>(
             `/clients/cobros?page=${page}&pageSize=${pageSize}${estado ? `&estado=${estado}` : ''}`
         ),
+    // CREATE
+    createCliente: (dto: CreateClienteDto) => post<Cliente>('/clients', dto),
+    createCobro: (dto: CreateCobroDto) => post<Cobro>('/clients/cobros', dto),
+    // UPDATE
+    updateCliente: (id: number, dto: Partial<CreateClienteDto & { estado?: string }>) =>
+        patch<Cliente>(`/clients/${id}`, dto),
 };
 
-// ─── Rutas ────────────────────────────────────────────────────────────────────
+// ─── Rutas / Logística ────────────────────────────────────────────────────────
 
 export const rutasApi = {
+    // GET
     getRutas: () => get<Ruta[]>('/logistics/rutas'),
     getVendedores: () => get<Vendedor[]>('/logistics/vendedores'),
+    // CREATE
+    createRuta: (dto: CreateRutaDto) => post<Ruta>('/logistics/rutas', dto),
+    createVendedor: (dto: CreateVendedorDto) => post<Vendedor>('/logistics/vendedores', dto),
+    // UPDATE
+    updateVendedor: (id: number, dto: Partial<CreateVendedorDto & { activo?: boolean }>) =>
+        patch<Vendedor>(`/logistics/vendedores/${id}`, dto),
 };
 
 // ─── Promociones ──────────────────────────────────────────────────────────────
 
 export const promocionesApi = {
+    // GET
     getPromociones: () => get<Promocion[]>('/promotions'),
     getVigentes: () => get<Promocion[]>('/promotions/vigentes'),
+    // CREATE / UPDATE
+    createPromocion: (dto: CreatePromocionDto) => post<Promocion>('/promotions', dto),
+    toggleActiva: (id: number) => patch<Promocion>(`/promotions/${id}/toggle`, {}),
 };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -145,21 +202,19 @@ export interface DashboardStats {
     totalInventario?: number;
 }
 
-/** Resumen mensual de ventas/cobros/devoluciones */
 export interface ResumenMensual {
     anio?: number;
     mes?: number;
-    mesLabel: string;   // Ej: "Mar '26"
+    mesLabel: string;
     ventas: number;
     cobros: number;
     devoluciones: number;
 }
 
-/** Distribución de ventas por categoría */
 export interface VentasPorCategoria {
     categoria: string;
-    valor: number;          // porcentaje
-    valorAbsoluto?: number; // monto USD
+    valor: number;
+    valorAbsoluto?: number;
     color?: string;
 }
 
@@ -186,7 +241,7 @@ export interface Bodega {
     capacidadTotal: number;
     capacidadUsada: number;
     encargado?: string;
-    productos?: number; // cantidad de SKUs
+    productos?: number;
 }
 
 export interface Producto {
@@ -233,10 +288,10 @@ export interface Ruta {
     horaInicio?: string;
     horaFin?: string;
     departamento?: string;
-    estado: string;             // EstadoRuta
-    clientesTotal?: number;     // Total clientes asignados
-    entregasHoy?: number;       // Entregas programadas hoy
-    entregasCompletadas?: number; // Completadas hoy
+    estado: string;
+    clientesTotal?: number;
+    entregasHoy?: number;
+    entregasCompletadas?: number;
     vendedorId: number;
     vendedor?: Vendedor;
     clientes?: Cliente[];
@@ -250,12 +305,12 @@ export interface Cliente {
     direccion: string;
     telefono?: string;
     email?: string;
-    tipo: string;           // TipoCliente
-    estado: string;         // EstadoCliente
+    tipo: string;
+    estado: string;
     limiteCredito: number;
     saldoActual: number;
     diasCredito: number;
-    ultimaCompra?: string;  // ISO date
+    ultimaCompra?: string;
     rutaId?: number;
     ruta?: Ruta;
 }
@@ -264,9 +319,9 @@ export interface Factura {
     id: number;
     numeroFactura: string;
     fechaEmision: string;
-    fechaVencimiento?: string;  // ISO date
+    fechaVencimiento?: string;
     total: number;
-    estado: string;             // EstadoFactura
+    estado: string;
     ventaId: number;
     venta?: Venta;
     cobros?: { monto: number }[];
@@ -290,12 +345,12 @@ export interface Cobro {
     id: number;
     codigo?: string;
     fecha: string;
-    fechaPago?: string;     // ISO date si ya fue cobrado
+    fechaPago?: string;
     monto: number;
     metodoPago?: string;
     referenciaPago?: string;
-    estado: string;         // EstadoCobro
-    diasVencido?: number;   // Días vencidos (si aplica)
+    estado: string;
+    diasVencido?: number;
     facturaId: number;
     clienteId: number;
     factura?: Factura;
@@ -307,7 +362,7 @@ export interface Devolucion {
     codigo?: string;
     fecha: string;
     motivo: string;
-    estado: string;         // EstadoDevolucion
+    estado: string;
     cantidad: number;
     monto: number;
     ventaId: number;
@@ -320,7 +375,7 @@ export interface Promocion {
     id: number;
     codigo?: string;
     nombre: string;
-    tipo: string;           // TipoPromocion
+    tipo: string;
     descripcion?: string;
     fechaInicio: string;
     fechaFin: string;
@@ -329,7 +384,7 @@ export interface Promocion {
     usos: number;
     presupuesto: number;
     gastado: number;
-    estado: string;         // EstadoPromocion
+    estado: string;
     activa: boolean;
     productos?: { producto: Producto }[];
 }
@@ -340,6 +395,92 @@ export interface ProductoMasVendido {
     totalVendido?: number;
     unidades?: number;
     ingresos?: number;
+}
+
+// ─── DTO interfaces (para tipar los formularios) ──────────────────────────────
+
+export interface CreateCategoriaDto {
+    nombre: string;
+    descripcion?: string;
+    colorHex?: string;
+}
+
+export interface CreateProductoDto {
+    nombre: string;
+    descripcion?: string;
+    codigoBarras?: string;
+    precioBase: number;
+    categoriaId: number;
+}
+
+export interface CreateLoteDto {
+    numeroLote: string;
+    fechaFabricacion: string;
+    fechaVencimiento: string;
+    cantidadInicial: number;
+    productoId: number;
+}
+
+export interface CreateBodegaDto {
+    nombre: string;
+    codigo?: string;
+    ubicacion?: string;
+    capacidadTotal?: number;
+    encargado?: string;
+}
+
+export interface CreateClienteDto {
+    nombre: string;
+    identificacion: string;
+    direccion: string;
+    telefono?: string;
+    email?: string;
+    limiteCredito?: number;
+    diasCredito?: number;
+    rutaId?: number;
+    tipo?: string;
+    estado?: string;
+}
+
+export interface CreateCobroDto {
+    facturaId: number;
+    monto: number;
+    metodoPago?: string;
+    referenciaPago?: string;
+}
+
+export interface CreateVentaDto {
+    clienteId: number;
+    vendedorId: number;
+    detalles: { productoId: number; cantidad: number }[];
+}
+
+export interface CreateDevolucionDto {
+    ventaId: number;
+    productoId: number;
+    cantidad: number;
+    motivo: string;
+}
+
+export interface CreateRutaDto {
+    nombre: string;
+    descripcion?: string;
+    vendedorId: number;
+}
+
+export interface CreateVendedorDto {
+    nombre: string;
+    telefono?: string;
+}
+
+export interface CreatePromocionDto {
+    nombre: string;
+    descripcion?: string;
+    fechaInicio: string;
+    fechaFin: string;
+    porcentajeDesc: number;
+    activa?: boolean;
+    productoIds: number[];
 }
 
 // ─── Reportes ─────────────────────────────────────────────────────────────────

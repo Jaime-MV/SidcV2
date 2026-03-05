@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Truck, MapPin, Clock, CheckCircle2, Users, Package, AlertCircle, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Truck, MapPin, Clock, CheckCircle2, Users, Package, AlertCircle, RefreshCw, AlertTriangle, Plus, X, Save } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Header } from '../components/layout/Header';
 import { Badge } from '../components/ui/Badge';
-import { rutasApi, type Ruta, estadoRutaLabel } from '../services/api';
+import { rutasApi, type Ruta, type Vendedor } from '../services/api';
 
 const estadoBadge = (e: string) => {
     if (e === 'EN_RUTA') return <Badge label="En Ruta" variant="info" />;
@@ -19,15 +19,144 @@ const estadoIcono = (e: string) => {
     return <AlertCircle className="w-4 h-4 text-red-500" />;
 };
 
+// ─── Modal Nueva Ruta ─────────────────────────────────────────────────────────
+function NuevaRutaModal({ open, onClose, onSaved, vendedores }: {
+    open: boolean; onClose: () => void; onSaved: () => void; vendedores: Vendedor[];
+}) {
+    const [nombre, setNombre] = useState('');
+    const [descripcion, setDescripcion] = useState('');
+    const [vendedorId, setVendedorId] = useState('');
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!open) { setNombre(''); setDescripcion(''); setVendedorId(''); setError(null); }
+    }, [open]);
+
+    const handleSave = async () => {
+        if (!nombre.trim()) { setError('El nombre es requerido'); return; }
+        if (!vendedorId) { setError('Selecciona un vendedor'); return; }
+        setSaving(true); setError(null);
+        try {
+            await rutasApi.createRuta({ nombre: nombre.trim(), descripcion: descripcion.trim() || undefined, vendedorId: parseInt(vendedorId) });
+            onSaved();
+            onClose();
+        } catch (e: unknown) {
+            setError(e instanceof Error ? e.message : 'Error al crear la ruta');
+        } finally { setSaving(false); }
+    };
+
+    if (!open) return null;
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+                <div className="flex items-center justify-between p-6 border-b border-gray-100">
+                    <h2 className="text-base font-semibold text-gray-900">Nueva Ruta</h2>
+                    <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"><X className="w-4 h-4 text-gray-500" /></button>
+                </div>
+                <div className="p-6 space-y-4">
+                    {error && <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700">{error}</div>}
+                    <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Nombre de la Ruta *</label>
+                        <input value={nombre} onChange={e => setNombre(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400" placeholder="Ruta Norte San Salvador" />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Descripción</label>
+                        <textarea value={descripcion} onChange={e => setDescripcion(e.target.value)} rows={2} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400 resize-none" placeholder="Zona cubierta, municipios..." />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Vendedor asignado *</label>
+                        <select value={vendedorId} onChange={e => setVendedorId(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400">
+                            <option value="">Seleccionar vendedor...</option>
+                            {vendedores.filter(v => v.activo).map(v => <option key={v.id} value={v.id}>{v.nombre}</option>)}
+                        </select>
+                    </div>
+                </div>
+                <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100">
+                    <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+                    <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60 transition-colors">
+                        <Save className="w-3.5 h-3.5" />{saving ? 'Creando...' : 'Crear Ruta'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ─── Modal Nuevo Vendedor ─────────────────────────────────────────────────────
+function NuevoVendedorModal({ open, onClose, onSaved }: {
+    open: boolean; onClose: () => void; onSaved: () => void;
+}) {
+    const [nombre, setNombre] = useState('');
+    const [telefono, setTelefono] = useState('');
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!open) { setNombre(''); setTelefono(''); setError(null); }
+    }, [open]);
+
+    const handleSave = async () => {
+        if (!nombre.trim()) { setError('El nombre es requerido'); return; }
+        setSaving(true); setError(null);
+        try {
+            await rutasApi.createVendedor({ nombre: nombre.trim(), telefono: telefono.trim() || undefined });
+            onSaved();
+            onClose();
+        } catch (e: unknown) {
+            setError(e instanceof Error ? e.message : 'Error al crear el vendedor');
+        } finally { setSaving(false); }
+    };
+
+    if (!open) return null;
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+                <div className="flex items-center justify-between p-6 border-b border-gray-100">
+                    <h2 className="text-base font-semibold text-gray-900">Nuevo Vendedor</h2>
+                    <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"><X className="w-4 h-4 text-gray-500" /></button>
+                </div>
+                <div className="p-6 space-y-4">
+                    {error && <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700">{error}</div>}
+                    <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Nombre *</label>
+                        <input value={nombre} onChange={e => setNombre(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400" placeholder="Nombre completo" />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Teléfono</label>
+                        <input value={telefono} onChange={e => setTelefono(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400" placeholder="7000-0000" />
+                    </div>
+                </div>
+                <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100">
+                    <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+                    <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60 transition-colors">
+                        <Save className="w-3.5 h-3.5" />{saving ? 'Creando...' : 'Registrar Vendedor'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 export default function RutasPage() {
     const [rutas, setRutas] = useState<Ruta[]>([]);
+    const [vendedores, setVendedores] = useState<Vendedor[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [modalRuta, setModalRuta] = useState(false);
+    const [modalVendedor, setModalVendedor] = useState(false);
 
     const loadData = async () => {
         setLoading(true); setError(null);
-        try { setRutas(await rutasApi.getRutas()); }
-        catch (e: unknown) { setError(e instanceof Error ? e.message : 'Error'); }
+        try {
+            const [rutasData, vendedoresData] = await Promise.all([
+                rutasApi.getRutas(),
+                rutasApi.getVendedores(),
+            ]);
+            setRutas(rutasData);
+            setVendedores(vendedoresData);
+        } catch (e: unknown) { setError(e instanceof Error ? e.message : 'Error'); }
         finally { setLoading(false); }
     };
     useEffect(() => { loadData(); }, []);
@@ -49,6 +178,8 @@ export default function RutasPage() {
 
     return (
         <div className="flex flex-col h-full">
+            <NuevaRutaModal open={modalRuta} onClose={() => setModalRuta(false)} onSaved={loadData} vendedores={vendedores} />
+            <NuevoVendedorModal open={modalVendedor} onClose={() => setModalVendedor(false)} onSaved={loadData} />
             <Header title="Rutas & Reparto" subtitle="Monitoreo en tiempo real de rutas de distribución" onRefresh={loadData} />
             <div className="flex-1 p-6 space-y-5 overflow-y-auto">
 
@@ -76,7 +207,19 @@ export default function RutasPage() {
                     </div>
                 </div>
 
-                {/* Grid de tarjetas de rutas */}
+                {/* Acciones + Grid de tarjetas de rutas */}
+                <div className="flex items-center justify-between">
+                    <h2 className="font-semibold text-gray-900">Rutas de Distribución</h2>
+                    <div className="flex items-center gap-2">
+                        <button onClick={() => setModalVendedor(true)} className="flex items-center gap-1.5 bg-gray-100 text-gray-700 text-xs px-3 py-2 rounded-lg hover:bg-gray-200 transition-colors">
+                            <Users className="w-3.5 h-3.5" />Nuevo Vendedor
+                        </button>
+                        <button onClick={() => setModalRuta(true)} className="flex items-center gap-1.5 bg-blue-600 text-white text-xs px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                            <Plus className="w-3.5 h-3.5" />Nueva Ruta
+                        </button>
+                    </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {rutas.length === 0 ? (
                         <div className="col-span-3 bg-white rounded-xl p-8 text-center text-gray-400">Sin rutas configuradas</div>
@@ -140,38 +283,70 @@ export default function RutasPage() {
                     </div>
                 )}
 
-                {/* Tabla detallada */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                    <h3 className="font-medium text-gray-900 mb-4">Asignaciones de Ruta</h3>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-b border-gray-100">
-                                    {['Ruta', 'Vendedor', 'Vehículo', 'Clientes', 'Entregas Hoy', 'Completadas', 'Km Est.', 'Horario', 'Estado'].map(h => (
-                                        <th key={h} className="text-left text-xs text-gray-400 pb-3 font-medium pr-3">{h}</th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {rutas.map(r => (
-                                    <tr key={r.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                                        <td className="py-3 pr-3"><p className="text-xs font-medium text-gray-800">{r.nombre}</p><p className="text-xs text-gray-400">{r.codigo ?? `R-${r.id}`}</p></td>
-                                        <td className="py-3 pr-3 text-xs text-gray-700">{r.vendedor?.nombre ?? '—'}</td>
-                                        <td className="py-3 pr-3 text-xs text-gray-500">{r.vehiculo ?? '—'}</td>
-                                        <td className="py-3 pr-3 text-xs text-gray-500">{r.clientesTotal ?? 0}</td>
-                                        <td className="py-3 pr-3 text-xs text-gray-500">{r.entregasHoy ?? 0}</td>
-                                        <td className="py-3 pr-3">
-                                            <span className={`text-xs font-medium ${r.entregasCompletadas === r.entregasHoy && (r.entregasHoy ?? 0) > 0 ? 'text-emerald-600' : 'text-blue-600'}`}>
-                                                {r.entregasCompletadas ?? 0}
-                                            </span>
-                                        </td>
-                                        <td className="py-3 pr-3 text-xs text-gray-500">{r.kmEstimados ?? 0} km</td>
-                                        <td className="py-3 pr-3 text-xs text-gray-500">{r.horaInicio ?? '—'}–{r.horaFin ?? '—'}</td>
-                                        <td className="py-3">{estadoBadge(r.estado)}</td>
+                {/* Tabla detallada + Vendedores */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                        <h3 className="font-medium text-gray-900 mb-4">Asignaciones de Ruta</h3>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="border-b border-gray-100">
+                                        {['Ruta', 'Vendedor', 'Vehículo', 'Clientes', 'Entregas Hoy', 'Completadas', 'Km Est.', 'Horario', 'Estado'].map(h => (
+                                            <th key={h} className="text-left text-xs text-gray-400 pb-3 font-medium pr-3">{h}</th>
+                                        ))}
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {rutas.map(r => (
+                                        <tr key={r.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                                            <td className="py-3 pr-3"><p className="text-xs font-medium text-gray-800">{r.nombre}</p><p className="text-xs text-gray-400">{r.codigo ?? `R-${r.id}`}</p></td>
+                                            <td className="py-3 pr-3 text-xs text-gray-700">{r.vendedor?.nombre ?? '—'}</td>
+                                            <td className="py-3 pr-3 text-xs text-gray-500">{r.vehiculo ?? '—'}</td>
+                                            <td className="py-3 pr-3 text-xs text-gray-500">{r.clientesTotal ?? 0}</td>
+                                            <td className="py-3 pr-3 text-xs text-gray-500">{r.entregasHoy ?? 0}</td>
+                                            <td className="py-3 pr-3">
+                                                <span className={`text-xs font-medium ${r.entregasCompletadas === r.entregasHoy && (r.entregasHoy ?? 0) > 0 ? 'text-emerald-600' : 'text-blue-600'}`}>
+                                                    {r.entregasCompletadas ?? 0}
+                                                </span>
+                                            </td>
+                                            <td className="py-3 pr-3 text-xs text-gray-500">{r.kmEstimados ?? 0} km</td>
+                                            <td className="py-3 pr-3 text-xs text-gray-500">{r.horaInicio ?? '—'}–{r.horaFin ?? '—'}</td>
+                                            <td className="py-3">{estadoBadge(r.estado)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* Panel de Vendedores */}
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-medium text-gray-900">Vendedores</h3>
+                            <button onClick={() => setModalVendedor(true)} className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Nuevo vendedor">
+                                <Plus className="w-4 h-4" />
+                            </button>
+                        </div>
+                        <div className="space-y-2">
+                            {vendedores.length === 0 ? (
+                                <p className="text-xs text-gray-400 text-center py-4">Sin vendedores registrados</p>
+                            ) : vendedores.map(v => (
+                                <div key={v.id} className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                                            <Users className="w-3.5 h-3.5 text-blue-600" />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-medium text-gray-800">{v.nombre}</p>
+                                            <p className="text-xs text-gray-400">{v.telefono ?? '—'}</p>
+                                        </div>
+                                    </div>
+                                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${v.activo ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                                        {v.activo ? 'Activo' : 'Inactivo'}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </div>

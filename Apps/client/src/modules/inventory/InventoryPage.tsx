@@ -32,7 +32,7 @@ export default function InventoryPage() {
         setError('');
         try {
             const res = await inventoryService.getProductos();
-            setProductos(Array.isArray(res) ? res : Array.isArray(res.data) ? res.data : []);
+            setProductos(Array.isArray(res) ? res : 'items' in res ? res.items : []);
         } catch (e: unknown) {
             setError(e instanceof Error ? e.message : 'Error al cargar productos');
         } finally {
@@ -146,7 +146,7 @@ export default function InventoryPage() {
                             <tr key={p.id}>
                                 <td>{p.id}</td>
                                 <td>{p.nombre}</td>
-                                <td>L {p.precioBase?.toFixed(2)}</td>
+                                <td>L {(p.precioVenta ?? p.precioCompra)?.toFixed(2)}</td>
                                 <td>{p.categoria?.nombre || p.categoriaId}</td>
                             </tr>
                         ))}

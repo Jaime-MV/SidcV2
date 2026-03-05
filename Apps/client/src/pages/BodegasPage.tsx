@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Warehouse, RefreshCw, AlertTriangle, Package, User, ChevronDown, ChevronUp } from 'lucide-react';
+import { Warehouse, RefreshCw, AlertTriangle, Package, User, ChevronDown, ChevronUp, Plus, Edit2, X, Save, Search } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Badge } from '../components/ui/Badge';
-import { inventarioApi, type Bodega, type Producto } from '../services/api';
+import { inventarioApi, type Bodega, type Producto, type CreateBodegaDto } from '../services/api';
 
 const fmt = (n: number) => new Intl.NumberFormat('es-SV', { style: 'currency', currency: 'USD' }).format(n);
 const fmtDate = (s: string) => new Date(s).toLocaleDateString('es-SV');
@@ -15,6 +15,102 @@ const estadoBadge = (e: string) => {
     return <Badge label={e} variant="neutral" />;
 };
 
+// ─── Modal Bodega ─────────────────────────────────────────────────────────────
+const BODEGA_EMPTY: CreateBodegaDto = { nombre: '', codigo: '', ubicacion: '', capacidadTotal: 0, encargado: '' };
+
+function BodegaModal({ open, onClose, onSaved, editBodega }: {
+    open: boolean; onClose: () => void; onSaved: () => void; editBodega?: Bodega | null;
+}) {
+    const [form, setForm] = useState<CreateBodegaDto>(BODEGA_EMPTY);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (editBodega) {
+            setForm({
+                nombre: editBodega.nombre,
+                codigo: editBodega.codigo ?? '',
+                ubicacion: editBodega.ubicacion ?? '',
+                capacidadTotal: editBodega.capacidadTotal,
+                encargado: editBodega.encargado ?? '',
+            });
+        } else {
+            setForm(BODEGA_EMPTY);
+        }
+        setError(null);
+    }, [editBodega, open]);
+
+    const set = (k: keyof CreateBodegaDto, v: string | number) =>
+        setForm(f => ({ ...f, [k]: v }));
+
+    const handleSave = async () => {
+        if (!form.nombre.trim()) { setError('El nombre es requerido'); return; }
+        setSaving(true); setError(null);
+        const payload: CreateBodegaDto = {
+            nombre: form.nombre.trim(),
+            codigo: form.codigo?.trim() || undefined,
+            ubicacion: form.ubicacion?.trim() || undefined,
+            capacidadTotal: Number(form.capacidadTotal) || 0,
+            encargado: form.encargado?.trim() || undefined,
+        };
+        try {
+            if (editBodega) {
+                await inventarioApi.updateBodega(editBodega.id, payload);
+            } else {
+                await inventarioApi.createBodega(payload);
+            }
+            onSaved();
+            onClose();
+        } catch (e: unknown) {
+            setError(e instanceof Error ? e.message : 'Error al guardar');
+        } finally { setSaving(false); }
+    };
+
+    if (!open) return null;
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+                <div className="flex items-center justify-between p-6 border-b border-gray-100">
+                    <h2 className="text-base font-semibold text-gray-900">{editBodega ? 'Editar Bodega' : 'Nueva Bodega'}</h2>
+                    <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"><X className="w-4 h-4 text-gray-500" /></button>
+                </div>
+                <div className="p-6 space-y-4">
+                    {error && <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700">{error}</div>}
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="col-span-2">
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Nombre *</label>
+                            <input value={form.nombre} onChange={e => set('nombre', e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50" placeholder="Bodega Central" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Código</label>
+                            <input value={form.codigo} onChange={e => set('codigo', e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400" placeholder="BOD-001" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Capacidad Total (uds)</label>
+                            <input type="number" min="0" value={form.capacidadTotal} onChange={e => set('capacidadTotal', e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400" />
+                        </div>
+                        <div className="col-span-2">
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Ubicación</label>
+                            <input value={form.ubicacion} onChange={e => set('ubicacion', e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400" placeholder="Zona Norte, San Salvador" />
+                        </div>
+                        <div className="col-span-2">
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Encargado</label>
+                            <input value={form.encargado} onChange={e => set('encargado', e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400" placeholder="Nombre del encargado" />
+                        </div>
+                    </div>
+                </div>
+                <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100">
+                    <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+                    <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60 transition-colors">
+                        <Save className="w-3.5 h-3.5" />{saving ? 'Guardando...' : (editBodega ? 'Actualizar' : 'Crear Bodega')}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 export default function BodegasPage() {
     const [bodegas, setBodegas] = useState<Bodega[]>([]);
     const [productos, setProductos] = useState<Producto[]>([]);
@@ -22,6 +118,8 @@ export default function BodegasPage() {
     const [error, setError] = useState<string | null>(null);
     const [expandedBodega, setExpandedBodega] = useState<number | null>(null);
     const [buscar, setBuscar] = useState('');
+    const [modalOpen, setModalOpen] = useState(false);
+    const [editBodega, setEditBodega] = useState<Bodega | null>(null);
 
     const loadData = async () => {
         setLoading(true); setError(null);
@@ -43,11 +141,8 @@ export default function BodegasPage() {
     const pctGlobal = totalCapacidad > 0 ? Math.round((totalUsado / totalCapacidad) * 100) : 0;
     const criticas = bodegas.filter(b => b.capacidadTotal > 0 && (b.capacidadUsada / b.capacidadTotal) > 0.85).length;
 
-    // Agrupar productos por bodega para la tabla de inventario
-    const productosPorBodega = (bodegaId: number) =>
-        productos.filter(p => p.bodegaId === bodegaId);
+    const productosPorBodega = (bodegaId: number) => productos.filter(p => p.bodegaId === bodegaId);
 
-    // Tabla de inventario filtrada (global)
     const productosFiltrados = productos.filter(p =>
         buscar === '' ||
         p.nombre.toLowerCase().includes(buscar.toLowerCase()) ||
@@ -67,11 +162,15 @@ export default function BodegasPage() {
         return 'bg-gray-100 text-gray-600';
     };
 
+    const openNew = () => { setEditBodega(null); setModalOpen(true); };
+    const openEdit = (b: Bodega) => { setEditBodega(b); setModalOpen(true); };
+
     if (loading) return <div className="flex flex-col h-full"><Header title="Bodegas" subtitle="Cargando..." /><div className="flex-1 flex items-center justify-center"><RefreshCw className="w-8 h-8 text-blue-500 animate-spin" /></div></div>;
     if (error) return <div className="flex flex-col h-full"><Header title="Bodegas" subtitle="Error" onRefresh={loadData} /><div className="flex-1 flex items-center justify-center p-8"><div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center max-w-md"><AlertTriangle className="w-10 h-10 text-red-500 mx-auto mb-3" /><p className="text-red-700">{error}</p><button onClick={loadData} className="mt-3 bg-red-600 text-white text-sm px-4 py-2 rounded-lg">Reintentar</button></div></div></div>;
 
     return (
         <div className="flex flex-col h-full">
+            <BodegaModal open={modalOpen} onClose={() => setModalOpen(false)} onSaved={loadData} editBodega={editBodega} />
             <Header title="Bodegas" subtitle="Control de almacenes y capacidad de almacenaje" onRefresh={loadData} />
             <div className="flex-1 p-6 space-y-5 overflow-y-auto">
 
@@ -97,7 +196,14 @@ export default function BodegasPage() {
                     </div>
                 </div>
 
-                {/* Tarjetas de bodegas con toggle expandible */}
+                {/* Header acción + Tarjetas de bodegas */}
+                <div className="flex items-center justify-between">
+                    <h2 className="font-semibold text-gray-900">Almacenes</h2>
+                    <button onClick={openNew} className="flex items-center gap-1.5 bg-blue-600 text-white text-xs px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                        <Plus className="w-3.5 h-3.5" />Nueva Bodega
+                    </button>
+                </div>
+
                 {bodegas.length > 0 && (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                         {bodegas.map(b => {
@@ -117,7 +223,12 @@ export default function BodegasPage() {
                                                 <h3 className="font-semibold text-gray-900">{b.nombre}</h3>
                                                 <p className="text-sm text-gray-500 mt-0.5">{b.ubicacion ?? 'Sin ubicación'}</p>
                                             </div>
-                                            <span className={`text-2xl font-bold ${pct > 85 ? 'text-red-600' : pct > 65 ? 'text-amber-600' : 'text-emerald-600'}`}>{pct}%</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className={`text-2xl font-bold ${pct > 85 ? 'text-red-600' : pct > 65 ? 'text-amber-600' : 'text-emerald-600'}`}>{pct}%</span>
+                                                <button onClick={() => openEdit(b)} className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Editar bodega">
+                                                    <Edit2 className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
                                         </div>
                                         <div className="mb-3">
                                             <div className="w-full bg-gray-100 rounded-full h-3">
@@ -186,12 +297,12 @@ export default function BodegasPage() {
                     </div>
                 )}
 
-                {/* Tabla Inventario por Bodega — global */}
+                {/* Tabla Inventario por Bodega */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="font-medium text-gray-900">Inventario por Bodega</h3>
                         <div className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-1.5 w-48">
-                            <Package className="w-3.5 h-3.5 text-gray-400" />
+                            <Search className="w-3.5 h-3.5 text-gray-400" />
                             <input
                                 type="text"
                                 placeholder="Buscar producto..."

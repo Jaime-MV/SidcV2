@@ -13,9 +13,18 @@ export class CreateProductoDto {
     @IsString()
     codigoBarras?: string;
 
+    @IsOptional()
     @IsNumber({ maxDecimalPlaces: 2 })
     @IsPositive()
-    precioBase: number;
+    precioBase?: number;
+
+    @IsOptional()
+    @IsNumber({ maxDecimalPlaces: 2 })
+    precioCompra?: number;
+
+    @IsOptional()
+    @IsNumber({ maxDecimalPlaces: 2 })
+    precioVenta?: number;
 
     @IsInt()
     @IsPositive()

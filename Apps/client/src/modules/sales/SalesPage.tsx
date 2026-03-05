@@ -15,7 +15,7 @@ export default function SalesPage() {
         setError('');
         try {
             const res = await salesService.getAll();
-            setVentas(Array.isArray(res) ? res : Array.isArray(res.data) ? res.data : []);
+            setVentas(Array.isArray(res) ? res : 'items' in res ? res.items : []);
         } catch (e: unknown) {
             setError(e instanceof Error ? e.message : 'Error al cargar ventas');
         } finally {
